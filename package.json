@@ -1,0 +1,17 @@
+{
+  "name": "gua-signal-relay",
+  "version": "1.0.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:webmcp": "bun build web/gua-entry.ts --target browser --format esm --minify --outfile build/web/gua-webmcp.js",
+    "check:webmcp": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "gua-webmcp": "1.0.2",
+    "gua-world-tools": "1.0.2"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}

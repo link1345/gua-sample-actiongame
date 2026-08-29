@@ -3,4 +3,7 @@ addons/gua/
 build/
 node_modules/
 *.tmp
+tests/bin/
+tests/obj/
+tests/TestResults/
 

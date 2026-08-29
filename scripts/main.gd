@@ -31,6 +31,14 @@ var location_label: Label
 var shield_status_label: Label
 var door_status_label: Label
 var laser_status_label: Label
+var next_target_label: Label
+var next_direction_label: Label
+var next_distance_label: Label
+var laser_staging_ready_label: Label
+var laser_timing_state_label: Label
+var laser_started_at_label: Label
+var laser_ends_at_label: Label
+var laser_activation_id_label: Label
 var power_value_label: Label
 var current_readout_label: Label
 var status_container: VBoxContainer
@@ -68,7 +76,7 @@ func _exit_tree() -> void:
 
 func _process(_delta: float) -> void:
 	if game_started:
-		laser_remaining.value = snappedf(state.laser_remaining_seconds(), 0.1)
+		_sync_live_ui()
 		world.queue_redraw()
 	if ui != null:
 		ui.update(_screen_name())
@@ -90,6 +98,23 @@ func _setup_gua() -> void:
 		return
 	ui = GuaAutoAdapterScript.new()
 	ui.attach(self)
+	if not OS.has_feature("web"):
+		var bridge_port := _resolve_gua_bridge_port()
+		if bridge_port <= 0:
+			return
+		if ui.start_inspector_bridge(bridge_port):
+			print("Gua test bridge listening at %s" % ui.inspector_bridge_url())
+		else:
+			push_warning("Could not start the Gua test bridge on port %d." % bridge_port)
+
+
+func _resolve_gua_bridge_port() -> int:
+	var configured_port := OS.get_environment("GUA_BRIDGE_PORT")
+	if configured_port.is_valid_int():
+		var parsed_port := configured_port.to_int()
+		if parsed_port > 0 and parsed_port <= 65535:
+			return parsed_port
+	return 0
 
 
 func _build_theme() -> void:
@@ -254,6 +279,9 @@ func _build_console() -> void:
 	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	warning.custom_minimum_size.y = 31
 	warning_box.add_child(warning)
+	var reactor_rules := _localized_label("reactor-hazard-rules", "reactor_hazard_rules", 9, AMBER)
+	reactor_rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	warning_box.add_child(reactor_rules)
 	var power_row := HBoxContainer.new()
 	column.add_child(power_row)
 	var power_label := _localized_label("reactor-power-label", "reactor_current", 12, MUTED)
@@ -278,6 +306,12 @@ func _build_console() -> void:
 	_localized(shield_check, "field_shield")
 	shield_check.toggled.connect(state.set_shield)
 	column.add_child(shield_check)
+	next_target_label = _label("operator-next-target", "", 10, CYAN)
+	next_direction_label = _label("operator-next-direction", "", 10, TEXT)
+	next_distance_label = _label("operator-next-distance", "", 10, TEXT)
+	laser_staging_ready_label = _label("laser-staging-ready", "", 10, AMBER)
+	for spatial_label in [next_target_label, next_direction_label, next_distance_label, laser_staging_ready_label]:
+		column.add_child(spatial_label)
 	_add_action_block(column, "door-a-requirement", "door_requirement", "door")
 	_add_action_block(column, "exit-requirement", "exit_requirement", "exit")
 	_add_action_block(column, "laser-suppression-requirement", "laser_requirement", "laser")
@@ -295,6 +329,16 @@ func _build_console() -> void:
 	laser_remaining.show_percentage = false
 	laser_remaining.custom_minimum_size = Vector2(140, 14)
 	timer_row.add_child(laser_remaining)
+	laser_timing_state_label = _label("laser-suppression-state", "", 9, TEXT)
+	laser_started_at_label = _label("laser-suppression-started-at", "", 9, TEXT)
+	laser_ends_at_label = _label("laser-suppression-ends-at", "", 9, TEXT)
+	laser_activation_id_label = _label("laser-suppression-activation-id", "", 9, TEXT)
+	for timing_label in [laser_timing_state_label, laser_started_at_label, laser_ends_at_label, laser_activation_id_label]:
+		column.add_child(timing_label)
+	var laser_rules := _localized_label("laser-hazard-rules", "laser_hazard_rules", 9, AMBER)
+	laser_rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	laser_rules.custom_minimum_size.y = 25
+	column.add_child(laser_rules)
 	column.add_child(_separator())
 	status_container = VBoxContainer.new()
 	_public(status_container, "mission-status", [])
@@ -502,6 +546,7 @@ func _toggle_locale() -> void:
 	_sync_localized_tree(self)
 	_sync_language_toggle()
 	_sync_ui()
+	world.refresh_semantics()
 	world.queue_redraw()
 
 
@@ -535,7 +580,7 @@ func _sync_ui() -> void:
 	exit_button.text = _text("exit_released") if state.exit_unlocked else _text("release_exit")
 	suppress_laser_button.disabled = not state.can_suppress_laser()
 	suppress_laser_button.text = _text("suppress_laser")
-	laser_remaining.value = snappedf(state.laser_remaining_seconds(), 0.1)
+	_sync_live_ui()
 	_sync_conditional_statuses()
 	if overlay.visible:
 		_sync_result_text()
@@ -545,10 +590,25 @@ func _sync_conditional_statuses() -> void:
 	_status("partner-at-door-a", "conditional_at_door", state.at_door_a, AMBER)
 	_status("partner-past-door-a", "conditional_past_door", state.past_door_a, GREEN)
 	_status("partner-in-laser-corridor", "conditional_in_laser", state.in_laser_corridor, RED)
+	_status("partner-at-laser-staging", "conditional_at_laser_staging", state.at_laser_staging, CYAN)
+	_status("partner-through-laser", "conditional_through_laser", state.past_laser, GREEN)
 	_status("partner-at-exit", "conditional_at_exit", state.at_exit and not state.mission_complete, GREEN)
 	_status("door-a-open", "conditional_door_open", state.door_a_open, GREEN)
 	_status("shield-active", "conditional_shield", state.shield_enabled, CYAN)
 	_status("mission-complete", "conditional_complete", state.mission_complete, GREEN)
+
+
+func _sync_live_ui() -> void:
+	laser_remaining.value = snappedf(state.laser_remaining_seconds(), 0.1)
+	next_target_label.text = _text("next_target", [_text(state.next_target_key())])
+	next_direction_label.text = _text("next_direction", [_text(state.next_direction_key())])
+	next_distance_label.text = _text("next_distance", [state.next_target_distance_meters()])
+	laser_staging_ready_label.text = _text("laser_staging_ready", [_text("readiness_ready") if state.at_laser_staging else _text("readiness_not_ready")])
+	laser_staging_ready_label.add_theme_color_override("font_color", GREEN if state.at_laser_staging else AMBER)
+	laser_timing_state_label.text = _text("laser_timing_state", [_text("state_active") if state.laser_is_active() else _text("state_suppressed")])
+	laser_started_at_label.text = _text("laser_started_at", [state.laser_started_at_text()])
+	laser_ends_at_label.text = _text("laser_ends_at", [state.laser_ends_at_text()])
+	laser_activation_id_label.text = _text("laser_activation_id", [state.laser_suppression_activation_id])
 
 
 func _status(id: String, key: String, visible: bool, color: Color) -> void:

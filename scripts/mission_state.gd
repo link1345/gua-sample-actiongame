@@ -7,6 +7,11 @@ signal mission_finished(success: bool)
 
 const GameTextScript := preload("res://scripts/game_text.gd")
 const MAX_HP := 100
+const PIXELS_PER_METER := 10.0
+const DOOR_TARGET_X := 335.0
+const LASER_STAGING_TARGET_X := 470.0
+const EXTRACTION_TARGET_X := 720.0
+const AIRLOCK_TARGET_X := 770.0
 
 var locale := GameTextScript.JA
 var hp := MAX_HP
@@ -16,11 +21,16 @@ var door_a_open := false
 var exit_unlocked := false
 var at_door_a := false
 var past_door_a := false
+var at_laser_staging := false
 var in_laser_corridor := false
+var past_laser := false
 var at_exit := false
 var mission_complete := false
 var mission_failed := false
 var laser_suppressed_until := 0.0
+var laser_suppression_started_at := -1.0
+var laser_suppression_activation_id := 0
+var operator_x := 92.0
 var latest_agent_message := ""
 var latest_agent_message_is_default := true
 var latest_human_message := ""
@@ -36,11 +46,16 @@ func reset() -> void:
 	exit_unlocked = false
 	at_door_a = false
 	past_door_a = false
+	at_laser_staging = false
 	in_laser_corridor = false
+	past_laser = false
 	at_exit = false
 	mission_complete = false
 	mission_failed = false
 	laser_suppressed_until = 0.0
+	laser_suppression_started_at = -1.0
+	laser_suppression_activation_id = 0
+	operator_x = 92.0
 	latest_agent_message_is_default = true
 	latest_agent_message = _text("message_initial")
 	latest_human_message = ""
@@ -74,7 +89,7 @@ func can_unlock_exit() -> bool:
 
 
 func can_suppress_laser() -> bool:
-	return door_a_open and not mission_complete and not mission_failed and laser_is_active()
+	return door_a_open and (at_laser_staging or in_laser_corridor) and not mission_complete and not mission_failed and laser_is_active()
 
 
 func set_shield(value: bool) -> void:
@@ -98,7 +113,9 @@ func set_power(value: float) -> void:
 func suppress_laser() -> bool:
 	if not can_suppress_laser():
 		return false
-	laser_suppressed_until = elapsed + 6.0
+	laser_suppression_started_at = elapsed
+	laser_suppressed_until = laser_suppression_started_at + 6.0
+	laser_suppression_activation_id += 1
 	append_localized_message("system", "message_laser_suppressed")
 	changed.emit()
 	return true
@@ -140,6 +157,77 @@ func laser_remaining_seconds() -> float:
 
 func laser_is_active() -> bool:
 	return not mission_complete and not mission_failed and laser_remaining_seconds() <= 0.0
+
+
+func laser_suppression_state_key() -> String:
+	return "active" if laser_is_active() else "suppressed"
+
+
+func laser_started_at_text() -> String:
+	return _format_tenths(laser_suppression_started_at) if laser_suppression_started_at >= 0.0 else _text("timing_not_started")
+
+
+func laser_ends_at_text() -> String:
+	return _format_tenths(laser_suppressed_until) if laser_suppression_started_at >= 0.0 else _text("timing_not_started")
+
+
+func update_operator_position(value: float) -> bool:
+	var rounded_value := snappedf(value, 0.1)
+	if is_equal_approx(operator_x, rounded_value):
+		return false
+	operator_x = rounded_value
+	return true
+
+
+func operator_position_meters() -> float:
+	return snappedf(operator_x / PIXELS_PER_METER, 0.1)
+
+
+func next_target_key() -> String:
+	if mission_complete or exit_unlocked or at_exit:
+		return "world_airlock"
+	if past_laser:
+		return "world_extraction"
+	if door_a_open and (past_door_a or at_laser_staging or in_laser_corridor):
+		return "world_staging" if not at_laser_staging and not in_laser_corridor else "world_extraction"
+	return "world_door"
+
+
+func next_target_x() -> float:
+	match next_target_key():
+		"world_staging": return LASER_STAGING_TARGET_X
+		"world_extraction": return EXTRACTION_TARGET_X
+		"world_airlock": return AIRLOCK_TARGET_X
+		_: return DOOR_TARGET_X
+
+
+func next_target_distance_meters() -> float:
+	return snappedf(absf(next_target_x() - operator_x) / PIXELS_PER_METER, 0.1)
+
+
+func next_direction_key() -> String:
+	var delta := next_target_x() - operator_x
+	if absf(delta) <= PIXELS_PER_METER * 0.5:
+		return "direction_arrived"
+	return "direction_east" if delta > 0.0 else "direction_west"
+
+
+func zone_key() -> String:
+	if mission_complete or operator_x >= AIRLOCK_TARGET_X:
+		return "airlock"
+	if at_exit:
+		return "extraction_zone"
+	if past_laser:
+		return "post_laser"
+	if in_laser_corridor:
+		return "laser_corridor"
+	if at_laser_staging:
+		return "laser_staging"
+	if past_door_a:
+		return "sector_a"
+	if at_door_a:
+		return "door_a"
+	return "arrival_bay"
 
 
 func damage(amount: int, reason: String) -> void:
@@ -215,8 +303,14 @@ func objective() -> String:
 		return _text("objective_enter_airlock")
 	if at_exit:
 		return _text("objective_release_exit")
-	if past_door_a:
+	if past_laser:
+		return _text("objective_reach_exit")
+	if in_laser_corridor:
 		return _text("objective_cross_laser")
+	if at_laser_staging:
+		return _text("objective_ai_suppress_laser") if laser_is_active() else _text("objective_cross_laser")
+	if past_door_a:
+		return _text("objective_reach_laser_staging")
 	if door_a_open:
 		return _text("objective_pass_door")
 	if at_door_a:
@@ -229,8 +323,12 @@ func location_name() -> String:
 		return _text("location_evacuated")
 	if at_exit:
 		return _text("location_exit")
+	if past_laser:
+		return _text("location_post_laser")
 	if in_laser_corridor:
 		return _text("location_laser")
+	if at_laser_staging:
+		return _text("location_laser_staging")
 	if past_door_a:
 		return _text("location_interior")
 	if at_door_a:
@@ -241,6 +339,11 @@ func location_name() -> String:
 func format_time() -> String:
 	var seconds := int(elapsed)
 	return "%02d:%02d" % [seconds / 60, seconds % 60]
+
+
+func _format_tenths(value: float) -> String:
+	var tenths := int(round(value * 10.0))
+	return "%02d:%02d.%d" % [(tenths / 10) / 60, (tenths / 10) % 60, tenths % 10]
 
 
 func _trim_messages() -> void:

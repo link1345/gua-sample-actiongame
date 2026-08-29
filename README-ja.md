@@ -55,6 +55,7 @@ Guaは、安定したnode ID、role、label、text、state、対応action、リ�
 - 公開URLへ配置できるWebビルド
 - 2タブで開いた場合のゲーム状態分離
 - ミッションをまたいで維持される、人間専用の日英UI切替
+- 位置、空間案内、危険状態を持つPlayer投影のWorld Object Tree
 
 ## 技術構成
 
@@ -68,6 +69,8 @@ Guaは、安定したnode ID、role、label、text、state、対応action、リ�
 固定依存：
 
 - Gua Godot addon `v1.0.2`
+- `Gua.Testing` `v1.0.2`
+- `Gua.Testing.Godot` `v1.0.2`
 - `gua-webmcp` `v1.0.2`
 - `gua-world-tools` `v1.0.2`
 
@@ -83,8 +86,9 @@ Godot Canvas内でも日本語を安定表示するため、WebビルドにはSI
 2. 人間はWASDまたは矢印キーでField OperatorをDoor Aまで移動し、チャットでAIへ知らせます。
 3. AIは専用コンソールで`FIELD SHIELD`を有効にし、電流を80Aより上へ設定して`OPEN DOOR A`を押します。
 4. 人間は表示された電流値を確認し、Door Aを通過します。
-5. AIが`Suppress Laser 6s`を押したら、人間は`laser-suppression-remaining`が6秒から減る間にレーザー区画を通過します。
-6. 人間がExtraction Zoneへ到着すると`RELEASE EXIT`が有効になり、AIが出口を解放します。
+5. 人間は枠線で示されたレーザー待機地点で停止します。実際に到着した場合だけ、AIの`Suppress Laser 6s`が有効になります。
+6. AIは操作前に「レーザーが消えたら走る」と伝えます。人間は停止後のAI返信を待たず、ビームの消灯を合図に6秒以内で通過します。
+7. 人間がExtraction Zoneへ到着すると`RELEASE EXIT`が有効になり、AIが出口を解放します。
 
 人間はタイトル画面・ミッション中を問わず、全UIを日本語／英語に切り替えられます。このボタンは`private`でAIのPlayer投影には出ません。システム生成メッセージは選択言語で再描画され、人間とAIが入力した自由文は原文を維持します。
 
@@ -103,6 +107,7 @@ Godot Canvas内でも日本語を安定表示するため、WebビルドにはSI
 
 # Godot起動確認、WebMCP型検査、Web Release生成
 .\scripts\run-smoke.ps1
+.\scripts\run-ui-tests.ps1
 bun install --frozen-lockfile
 bun run check:webmcp
 .\scripts\build-web.ps1
@@ -116,7 +121,15 @@ Semantic actionを含むミッション試験：
 godot --headless --path . --script res://tests/mission_smoke.gd
 ```
 
-この試験は開始前停止、AI専用開始、Player Tree、人間専用UIの除外、ボタン前提条件、レーザー残り時間、目標遷移、日英再描画、自由文保持、脱出済み所在地、再プレイ時のAI再承認、相関完了を確認します。
+この試験は開始前停止、AI専用開始、Player UI／World Object Tree、人間専用UIの除外、メートル単位の案内、ボタン前提条件、レーザー時刻とダメージ、目標遷移、日英再描画、自由文保持、脱出済み所在地、再プレイ時のAI再承認、相関完了を確認します。
+
+`mission_smoke.gd`はゲーム内部で高速に状態遷移を検証する回帰試験です。これとは別に、`Gua.Testing.Godot`がGodotを別プロセスで起動し、WebSocket bridge越しに実際のSemantic UIを操作するUIテストを用意しています。
+
+```powershell
+.\scripts\run-ui-tests.ps1 -GodotExecutable "C:\path\to\Godot_v4.7-stable_win64_console.exe"
+```
+
+外部UIテストは、タイトルの説明とAI専用開始、開始前後のWorld Object公開状態、操作条件によるDoor Aの無効／有効化、`set_checked`／`set_value`／`click`の相関完了、開放後の状態公開を確認します。失敗時のGua diagnosticsはテスト出力の`artifacts/gua`へ保存されます。このテストはGitHub Pagesのビルドジョブでも実行します。
 
 ## AI Control Operator向け手順
 
@@ -131,10 +144,25 @@ wait_for_node("partner-at-door-a")
 set_checked("shield-enabled", true)
 set_value("reactor-current", "85")
 click_node("door-a-control")
+wait_for_node("partner-at-laser-staging")
+set_value("agent-message-draft", "レーザーが消えたら走ってください。次の返信は待たないでください。")
+click_node("send-agent-message")
 click_node("suppress-laser")
 ```
 
 前提条件は安定ID `door-a-requirement`、`exit-requirement`、`laser-suppression-requirement`で公開します。読み取り専用の`laser-suppression-remaining`は、0～6秒の値を0.1秒単位で公開します。`play-game`はタイトル画面だけに現れ、再プレイ時もAIによるクリックが必要です。
+
+AIコンソールには`operator-next-target`、`operator-next-direction`、`operator-next-distance`、`laser-staging-ready`も公開します。レーザーが再稼働した後も、`laser-suppression-started-at`、`laser-suppression-ends-at`、`laser-suppression-activation-id`から直前の停止履歴を確認できます。
+
+`get_world_object_tree()`はミッション中、読み取り専用の7 object、`sector-a`、`field-operator`、`door-a`、`laser-staging-zone`、`laser-array`、`extraction-zone`、`exit-airlock`を公開します。位置単位はメートルで、operatorのzone、次目標、距離、シールド／HP、扉状態、レーザー時刻、出口準備状態をprimitive stateとして取得できます。
+
+```text
+get_world_object_tree()
+find_world_objects({"id": "field-operator"})
+find_world_objects({"id": "laser-array"})
+```
+
+レーザー接触は28HPで、最大1秒に1回です。停止終了そのものでは被弾せず、ビーム接触中だけダメージを受けます。再停止のクールダウンはありません。シールドなしで80A以下から80Aを超過させると34HPを失います。WebMCPの往復時間はブラウザエージェントに依存し、ゲーム側では保証しないため、後続チャットではなく画面上の消灯を開始合図にします。
 
 ブラウザ経路は常にGuaのPlayer投影を使います。AI専用Control Consoleはこの投影にだけ公開し、人間専用の電流計とチャット入力は`private`としてAIから除外します。ゲーム状態とツール登録はタブごとに独立します。
 

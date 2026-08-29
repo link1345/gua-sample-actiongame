@@ -25,6 +25,7 @@ func _run() -> void:
 	# The mission is inert and only the title is projected until the AI starts it.
 	game.ui.update("title")
 	var title_tree: String = game.ui.get_player_ui_tree_json()
+	var title_world: String = game.ui.get_player_world_object_tree_json()
 	_check(not game.game_started, "mission does not auto-start")
 	_check(title_tree.contains("play-game"), "title publishes the AI start action")
 	_check(title_tree.contains("title-game-description"), "title explains the WebMCP game")
@@ -32,6 +33,7 @@ func _run() -> void:
 	_check(title_tree.contains("title-start-restriction"), "title publishes the human restriction")
 	_check(not title_tree.contains("reactor-current"), "mission controls are hidden on title")
 	_check(not title_tree.contains("language-toggle"), "human language toggle is private")
+	_check(not title_world.contains("sector-a"), "title publishes no Player world objects")
 	_check(game.play_game_button.mouse_filter == Control.MOUSE_FILTER_IGNORE, "human pointer input cannot press play")
 	_check(game.play_game_button.focus_mode == Control.FOCUS_NONE, "human keyboard focus cannot press play")
 	var initial_position: Vector2 = game.world.player_position
@@ -45,26 +47,48 @@ func _run() -> void:
 	var mission_tree: String = game.ui.get_player_ui_tree_json()
 	for id in ["reactor-current", "shield-enabled", "door-a-control", "exit-control", "suppress-laser"]:
 		_check(mission_tree.contains(id), "mission publishes %s" % id)
-	for id in ["door-a-requirement", "exit-requirement", "laser-suppression-requirement", "laser-suppression-remaining"]:
+	for id in ["door-a-requirement", "exit-requirement", "laser-suppression-requirement", "laser-suppression-remaining", "operator-next-target", "operator-next-direction", "operator-next-distance", "laser-staging-ready", "laser-suppression-state", "laser-suppression-started-at", "laser-suppression-ends-at", "laser-suppression-activation-id", "laser-hazard-rules", "reactor-hazard-rules"]:
 		_check(mission_tree.contains(id), "mission publishes %s" % id)
 	_check(not mission_tree.contains("play-game"), "title action is hidden during mission")
 	_check(not mission_tree.contains("field-current-readout"), "AI tree hides human-only current readout")
 	_check(not mission_tree.contains("human-message-draft"), "AI tree hides human chat composer")
+	var mission_world: String = game.ui.get_player_world_object_tree_json()
+	for id in ["sector-a", "field-operator", "door-a", "laser-staging-zone", "laser-array", "extraction-zone", "exit-airlock"]:
+		_check(mission_world.contains(id), "Player world tree publishes %s" % id)
+	_check(mission_world.contains("24.3") and mission_world.contains("distance_meters"), "world tree publishes meter-based next-target distance")
+	_check(mission_world.contains("contact_damage_hp") and mission_world.contains("cooldown_seconds"), "world tree publishes laser hazard rules")
+	var operator_query: String = game.ui.query_player_world_objects_json({"id": "field-operator"})
+	_check(operator_query.contains("field-operator") and operator_query.contains("distance_meters"), "Player world query selects the field operator")
 
 	# Button enabled states follow the published prerequisites.
 	_check(game.door_button.disabled, "Door A begins disabled")
 	_check(game.exit_button.disabled, "Exit begins disabled")
 	_check(game.suppress_laser_button.disabled, "Laser begins disabled")
+	await _action(game, {"action": "set_value", "node_id": "reactor-current", "value": "85"})
+	_check(game.state.hp == 66, "unshielded current crossing deals exactly 34 HP")
+	game.state.reset()
+	game.world.reset_player()
+	await process_frame
 	await _action(game, {"action": "set_checked", "node_id": "shield-enabled", "bool_value": true})
 	_check(game.door_button.disabled, "Door A still needs current above 80A")
 	await _action(game, {"action": "set_value", "node_id": "reactor-current", "value": "85"})
 	_check(not game.door_button.disabled, "Door A enables when shield and current are ready")
 	await _action(game, {"action": "click", "node_id": "door-a-control"})
 	_check(game.state.door_a_open, "Door A opens after prerequisites")
-	_check(not game.suppress_laser_button.disabled, "laser suppression enables after Door A")
+	_check(game.suppress_laser_button.disabled, "laser suppression stays disabled away from staging")
+	game.world.player_position = Vector2(470, 320)
+	game.world.call("_update_zones")
+	game.world.refresh_semantics()
+	await process_frame
+	_check(game.state.at_laser_staging, "world reports the laser staging point")
+	_check(not game.suppress_laser_button.disabled, "laser suppression enables at staging")
+	_check(game.state.objective().contains("AI"), "staging objective asks AI to suppress the laser")
+	_check(is_equal_approx(game.state.next_target_distance_meters(), 25.0), "next target advances to Extraction Zone with meter distance")
 	await _action(game, {"action": "click", "node_id": "suppress-laser"})
 	var initial_remaining: float = game.state.laser_remaining_seconds()
 	_check(initial_remaining > 5.8 and initial_remaining <= 6.0, "laser suppression starts near six seconds")
+	_check(game.state.laser_suppression_activation_id == 1, "laser activation id increments")
+	_check(game.state.laser_suppression_started_at >= 0.0 and game.state.laser_suppressed_until > game.state.laser_suppression_started_at, "laser start and end times are retained")
 	game.state.tick(1.2)
 	game.call("_sync_ui")
 	_check(absf(game.state.laser_remaining_seconds() - 4.8) < 0.11, "laser remaining time counts down")
@@ -72,12 +96,32 @@ func _run() -> void:
 	game.state.tick(5.0)
 	game.call("_sync_ui")
 	_check(game.state.laser_is_active(), "laser returns active at zero")
+	_check(not game.suppress_laser_button.disabled, "laser can be suppressed again immediately with no cooldown")
+	var retained_start: float = game.state.laser_suppression_started_at
+	var retained_end: float = game.state.laser_suppressed_until
+
+	# Laser damage applies only on beam contact, at most once per second.
+	game.world.player_position = Vector2(520, 320)
+	game.world.call("_update_zones")
+	game.world.hit_cooldown = 0.0
+	game.world.call("_update_hazard")
+	_check(game.state.hp == 100, "suppression expiry does not damage away from a beam")
+	game.world.player_position = Vector2(560, 320)
+	game.world.call("_update_zones")
+	game.world.call("_update_hazard")
+	_check(game.state.hp == 72, "laser contact deals exactly 28 HP")
+	game.world.call("_update_hazard")
+	_check(game.state.hp == 72, "laser contact is limited to once per second")
+	_check(is_equal_approx(game.state.laser_suppression_started_at, retained_start) and is_equal_approx(game.state.laser_suppressed_until, retained_end), "expired suppression timestamps remain available")
 
 	# Objectives never regress after Door A, and exit unlock depends on position.
-	game.state.at_door_a = false
-	game.state.past_door_a = true
-	var past_door_objective: String = game.state.objective()
-	_check(past_door_objective.contains("レーザー"), "objective advances to the laser after Door A")
+	game.world.player_position = Vector2(650, 320)
+	game.world.call("_update_zones")
+	await process_frame
+	_check(game.state.past_laser, "world reports laser passage")
+	_check(game.state.objective().contains("Extraction"), "objective advances to Extraction Zone after the laser")
+	game.ui.update("mission")
+	_check(game.ui.get_player_ui_tree_json().contains("partner-through-laser"), "partner-through-laser status is published")
 	_check(game.exit_button.disabled, "Exit stays disabled before Extraction Zone")
 	game.world.player_position = Vector2(720, 320)
 	game.world.call("_update_zones")
@@ -102,6 +146,11 @@ func _run() -> void:
 	var english_tree: String = game.ui.get_player_ui_tree_json()
 	_check(english_tree.contains("door-a-requirement") and english_tree.contains("laser-suppression-remaining"), "semantic IDs survive language changes")
 	_check(not english_tree.contains("language-toggle"), "language toggle remains private after switching")
+	game.world.refresh_semantics()
+	game.ui.update("mission")
+	var english_world: String = game.ui.get_player_world_object_tree_json()
+	_check(english_world.contains("LASER STAGING") and english_world.contains("laser-staging-zone"), "world labels localize while world IDs remain stable")
+	_check(english_world.contains("activation_id") and english_world.contains("started_at_seconds"), "world timing state survives language changes")
 
 	game.state.complete()
 	await process_frame
@@ -115,6 +164,7 @@ func _run() -> void:
 	game.ui.update("title")
 	var replay_tree: String = game.ui.get_player_ui_tree_json()
 	_check(replay_tree.contains("play-game") and not replay_tree.contains("reactor-current"), "replay requires another AI start")
+	_check(not game.ui.get_player_world_object_tree_json().contains("sector-a"), "returning to title hides Player world objects again")
 
 	game.queue_free()
 	await process_frame

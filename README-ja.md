@@ -12,8 +12,8 @@
 
 舞台は事故が発生した研究施設です。
 
-- **人間 — 現場担当者：** キーボードで移動し、危険区域を突破します。
-- **AI — 管制担当者：** 警告とミッション状態を読み、電力を配分し、シールドと扉を操作して、ゲーム内端末から人間へ連絡します。
+- **人間 — 現場担当者：** キーボードで移動し、電流計を確認しながら危険区域を突破し、チャットでAIへ連絡します。
+- **AI — 管制担当者：** 人間には表示されない専用コンソールで警告とミッション状態を読み、電流、シールド、扉、レーザーを操作して、ゲーム内チャットから人間へ連絡します。
 - **共有ゲーム状態：** 人間とAIは、同じブラウザゲームの状態を観測・変更します。
 
 代表的な協力場面：
@@ -49,8 +49,8 @@ Guaは、安定したnode ID、role、label、text、state、対応action、リ�
 - シールドとダメージ警告
 - 遠隔操作する扉2つ
 - 移動または周期的に作動する危険物1つ
-- AIから人間へ送るゲーム内メッセージ端末
-- 人間側の返答操作
+- AI専用の非表示Control Consoleと、人間専用の電流計
+- 人間とAIの双方向チャット
 - ミッション条件を表すsemantic status node
 - 公開URLへ配置できるWebビルド
 - 2タブで開いた場合のゲーム状態分離
@@ -76,13 +76,13 @@ Guaは、安定したnode ID、role、label、text、state、対応action、リ�
 
 ## 遊び方
 
-1. WASDまたは矢印キーでField OperatorをDoor Aまで移動します。
-2. Control Consoleで先に`FIELD SHIELD`を有効にします。
-3. Reactor Powerを80%より上へ設定し、`OPEN DOOR A`を押します。
-4. Power Routeを`Maintenance`へ切り替え、6秒間のレーザー停止中に通過します。
-5. Extraction zoneへ到着したら`RELEASE EXIT`を押し、出口へ進みます。
+1. 人間はWASDまたは矢印キーでField OperatorをDoor Aまで移動し、チャットでAIへ知らせます。
+2. AIは専用コンソールで`FIELD SHIELD`を有効にし、電流を80Aより上へ設定して`OPEN DOOR A`を押します。
+3. 人間は表示された電流値を確認し、Door Aを通過します。
+4. AIが`Suppress Laser 6s`を押したら、人間は6秒間の停止中にレーザー区画を通過します。
+5. Extraction zoneへ到着したことをチャットで伝え、AIが`RELEASE EXIT`を押したら出口へ進みます。
 
-シールドなしで80%を超えるとHPが減り、レーザーへ触れてもダメージを受けます。通信端末ではAIが自由文を送り、人間は定型ボタンで返答できます。
+シールドなしで80Aを超えるとHPが減り、レーザーへ触れてもダメージを受けます。人間にはAI Control Consoleの内容や操作部品は表示されず、現在の電流値と共通チャットだけが表示されます。
 
 ## ローカル実行とWebビルド
 
@@ -110,7 +110,7 @@ Semantic actionを含むミッション試験：
 godot --headless --path . --script res://tests/mission_smoke.gd
 ```
 
-この試験はPlayer Tree、非表示情報の除外、危険／安全な電力経路、`set_value`、`set_checked`、`select`、`click`、通信、条件status、相関完了を確認します。
+この試験はPlayer Tree、AI専用Control、人間専用表示の除外、危険／安全な電力経路、`set_value`、`set_checked`、3つの操作ボタン、双方向チャット、条件status、相関完了を確認します。
 
 ## AI Control Operator向け手順
 
@@ -122,12 +122,12 @@ set_value("agent-message-draft", "Wait at Door A. I will enable the shield first
 click_node("send-agent-message")
 wait_for_node("partner-at-door-a")
 set_checked("shield-enabled", true)
-set_value("reactor-power", "85")
+set_value("reactor-current", "85")
 click_node("door-a-control")
-select("power-route", "Maintenance / Suppress laser 6s")
+click_node("suppress-laser")
 ```
 
-ブラウザ経路は常にGuaのPlayer投影を使い、非表示Controlは公開しません。ゲーム状態とツール登録はタブごとに独立します。
+ブラウザ経路は常にGuaのPlayer投影を使います。AI専用Control Consoleはこの投影にだけ公開し、人間専用の電流計とチャット入力は`private`としてAIから除外します。ゲーム状態とツール登録はタブごとに独立します。
 
 ## 関連
 

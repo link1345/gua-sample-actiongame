@@ -25,12 +25,18 @@ func _run() -> void:
 	game.ui.update("mission")
 	var initial_tree: String = game.ui.get_player_ui_tree_json()
 	_check(initial_tree.contains("power-warning-description"), "Player tree exposes safety warning")
-	_check(initial_tree.contains("reactor-power"), "Player tree exposes reactor control")
+	_check(initial_tree.contains("reactor-current"), "Player tree exposes reactor current control")
 	_check(initial_tree.contains("agent-message-draft"), "Player tree exposes communication draft")
+	_check(initial_tree.contains("door-a-control"), "Player tree exposes Door A button")
+	_check(initial_tree.contains("exit-control"), "Player tree exposes exit button")
+	_check(initial_tree.contains("suppress-laser"), "Player tree exposes laser suppression button")
+	_check(not initial_tree.contains("power-route"), "Player tree no longer exposes a power route select")
+	_check(not initial_tree.contains("field-current-readout"), "Player tree hides the human-only current readout")
+	_check(not initial_tree.contains("human-message-draft"), "Player tree hides the human chat composer")
 	_check(not initial_tree.contains("mission-result-title"), "Player tree hides inactive result overlay")
 
 	# Unsafe path: power above 80 without the shield must have a visible consequence.
-	await _action(game, {"action": "set_value", "node_id": "reactor-power", "value": "85"})
+	await _action(game, {"action": "set_value", "node_id": "reactor-current", "value": "85"})
 	_check(game.state.hp == 66, "unsafe reactor surge damages the operator")
 
 	# Safe path: the same controls, in the correct order, preserve HP and open the route.
@@ -39,12 +45,12 @@ func _run() -> void:
 	await process_frame
 	await _action(game, {"action": "set_checked", "node_id": "shield-enabled", "bool_value": true})
 	_check(game.state.shield_enabled, "set_checked enables the shield")
-	await _action(game, {"action": "set_value", "node_id": "reactor-power", "value": "85"})
+	await _action(game, {"action": "set_value", "node_id": "reactor-current", "value": "85"})
 	_check(game.state.hp == 100, "shield prevents reactor surge damage")
 	await _action(game, {"action": "click", "node_id": "door-a-control"})
 	_check(game.state.door_a_open, "click opens Door A after prerequisites")
-	await _action(game, {"action": "select", "node_id": "power-route", "value": "Maintenance / Suppress laser 6s"})
-	_check(not game.state.laser_is_active(), "select suppresses the laser")
+	await _action(game, {"action": "click", "node_id": "suppress-laser"})
+	_check(not game.state.laser_is_active(), "button suppresses the laser")
 
 	game.world.player_position = Vector2(720, 320)
 	await process_frame
@@ -57,8 +63,9 @@ func _run() -> void:
 	await _action(game, {"action": "set_value", "node_id": "agent-message-draft", "value": "Exit is open. Move now!"})
 	await _action(game, {"action": "click", "node_id": "send-agent-message"})
 	_check(game.state.latest_agent_message == "Exit is open. Move now!", "AI message uses the in-game send flow")
-	await _action(game, {"action": "click", "node_id": "human-ready"})
-	_check(game.state.latest_human_reply == "Ready", "human reply is visible to Control")
+	game.human_message_draft.text = "Ready. Moving now."
+	game.call("_send_human_message")
+	_check(game.state.latest_human_message == "Ready. Moving now.", "human chat message is visible to Control")
 
 	game.state.complete()
 	await process_frame

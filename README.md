@@ -12,8 +12,8 @@ English | [日本語](README-ja.md)
 
 The game takes place in a damaged research station.
 
-- **Human — Field Operator:** moves through hazards using keyboard controls.
-- **AI — Control Operator:** reads warnings and mission status, routes power, enables shields, opens doors, and communicates through the in-game terminal.
+- **Human — Field Operator:** moves through hazards using keyboard controls, watches the current meter, and talks to the AI through chat.
+- **AI — Control Operator:** uses a dedicated console hidden from the human to read warnings and mission status, control current, shields, doors, and the laser, and communicate through in-game chat.
 - **Shared game state:** both participants observe and change the same running browser game.
 
 A typical interaction:
@@ -49,8 +49,8 @@ The first playable build is one short two-to-three-minute mission containing:
 - One shield and damage warning
 - Two remotely controlled doors
 - One moving or cycling hazard
-- An AI-to-human message terminal
-- Human response controls
+- An AI-only Control Console and human-only current meter
+- Bidirectional human/AI chat
 - Semantic status nodes for mission conditions
 - A Web build deployable at a public URL
 - Independent state when the game is opened in two browser tabs
@@ -76,13 +76,13 @@ No external MCP server or WebSocket connection is required for the browser-nativ
 
 ## Play
 
-1. Move the Field Operator to Door A with WASD or the arrow keys.
-2. Enable `FIELD SHIELD` in the Control Console.
-3. Raise Reactor Power above 80% and press `OPEN DOOR A`.
-4. Switch Power Route to `Maintenance`, then cross while the laser is suppressed for six seconds.
-5. At the extraction zone, press `RELEASE EXIT` and enter the airlock.
+1. The human moves the Field Operator to Door A with WASD or the arrow keys and tells the AI through chat.
+2. The AI enables `FIELD SHIELD`, raises the current above 80A, and presses `OPEN DOOR A` in its private console.
+3. The human checks the displayed current and passes through Door A.
+4. The AI presses `Suppress Laser 6s`; the human crosses during the six-second suppression window.
+5. At the extraction zone, the human reports through chat and enters the airlock after the AI presses `RELEASE EXIT`.
 
-Applying high power without the shield or touching the laser causes damage. The communication terminal lets the AI send free-form messages while the human replies with quick-response buttons.
+Applying more than 80A without the shield or touching the laser causes damage. The human sees only the live current value and shared chat—not the AI Control Console or its controls.
 
 ## Local run and Web build
 
@@ -108,7 +108,7 @@ Run the correlated Semantic UI mission test with:
 godot --headless --path . --script res://tests/mission_smoke.gd
 ```
 
-The test covers the Player-projected tree, hidden-result exclusion, unsafe and safe power sequences, `set_value`, `set_checked`, `select`, `click`, communication, conditional status nodes, and request-correlated completion.
+The test covers the Player-projected tree, AI-only controls, exclusion of human-only UI, unsafe and safe power sequences, `set_value`, `set_checked`, the three control buttons, bidirectional chat, conditional status nodes, and request-correlated completion.
 
 ## AI Control Operator
 
@@ -120,12 +120,12 @@ set_value("agent-message-draft", "Wait at Door A. I will enable the shield first
 click_node("send-agent-message")
 wait_for_node("partner-at-door-a")
 set_checked("shield-enabled", true)
-set_value("reactor-power", "85")
+set_value("reactor-current", "85")
 click_node("door-a-control")
-select("power-route", "Maintenance / Suppress laser 6s")
+click_node("suppress-laser")
 ```
 
-The browser path always uses Gua's Player projection, so hidden controls are not exposed. Tool registrations and game state are isolated per browser tab.
+The browser path always uses Gua's Player projection. The AI-only Control Console is exposed only through that projection, while the human current meter and chat composer are marked `private` and excluded from the AI. Tool registrations and game state are isolated per browser tab.
 
 ## Related work
 

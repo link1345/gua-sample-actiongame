@@ -10,7 +10,6 @@ const MAX_HP := 100
 var hp := MAX_HP
 var shield_enabled := false
 var reactor_power := 30.0
-var power_route := 0
 var door_a_open := false
 var exit_unlocked := false
 var at_door_a := false
@@ -21,7 +20,7 @@ var mission_complete := false
 var mission_failed := false
 var laser_suppressed_until := 0.0
 var latest_agent_message := "Control link established. Move to Door A and report when ready."
-var latest_human_reply := "No response yet"
+var latest_human_message := "No response yet"
 var message_history: Array[String] = []
 var elapsed := 0.0
 
@@ -30,7 +29,6 @@ func reset() -> void:
 	hp = MAX_HP
 	shield_enabled = false
 	reactor_power = 30.0
-	power_route = 0
 	door_a_open = false
 	exit_unlocked = false
 	at_door_a = false
@@ -41,7 +39,7 @@ func reset() -> void:
 	mission_failed = false
 	laser_suppressed_until = 0.0
 	latest_agent_message = "Control link established. Move to Door A and report when ready."
-	latest_human_reply = "No response yet"
+	latest_human_message = "No response yet"
 	message_history.clear()
 	elapsed = 0.0
 	append_message("CONTROL", latest_agent_message)
@@ -72,15 +70,11 @@ func set_power(value: float) -> void:
 	changed.emit()
 
 
-func set_route(index: int) -> void:
+func suppress_laser() -> void:
 	if mission_complete or mission_failed:
 		return
-	power_route = clampi(index, 0, 1)
-	if power_route == 1:
-		laser_suppressed_until = elapsed + 6.0
-		append_message("SYSTEM", "Maintenance route active. Laser paused for 6 seconds.")
-	else:
-		append_message("SYSTEM", "Power returned to primary systems.")
+	laser_suppressed_until = elapsed + 6.0
+	append_message("SYSTEM", "Laser suppressed for 6 seconds.")
 	changed.emit()
 
 
@@ -136,12 +130,14 @@ func send_agent_message(text: String) -> bool:
 	return true
 
 
-func send_human_reply(text: String) -> void:
-	if mission_complete or mission_failed:
-		return
-	latest_human_reply = text
-	append_message("FIELD", text)
+func send_human_message(text: String) -> bool:
+	var clean := text.strip_edges()
+	if clean.is_empty() or mission_complete or mission_failed:
+		return false
+	latest_human_message = clean.left(180)
+	append_message("FIELD", latest_human_message)
 	changed.emit()
+	return true
 
 
 func complete() -> void:
@@ -169,11 +165,11 @@ func objective() -> String:
 	if not at_door_a:
 		return "Reach Door A and establish contact"
 	if not door_a_open:
-		return "Control: shield, route >80% power, then open Door A"
+		return "Control: shield, raise current above 80A, then open Door A"
 	if not past_door_a:
 		return "Pass through Door A"
 	if not at_exit:
-		return "Control: select Maintenance; Field: cross the laser corridor"
+		return "Control: suppress laser; Field: cross the laser corridor"
 	if not exit_unlocked:
 		return "Control: release the exit lock"
 	return "Field: enter the extraction airlock"

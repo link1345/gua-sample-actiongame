@@ -24,15 +24,15 @@ var shield_status_label: Label
 var door_status_label: Label
 var laser_status_label: Label
 var power_value_label: Label
+var current_readout_label: Label
 var status_container: VBoxContainer
 var power_slider: HSlider
 var shield_check: CheckBox
-var route_select: OptionButton
 var door_button: Button
 var exit_button: Button
+var suppress_laser_button: Button
 var message_draft: LineEdit
-var received_message: Label
-var human_reply: Label
+var human_message_draft: LineEdit
 var history_label: Label
 var overlay: ColorRect
 var overlay_title: Label
@@ -138,6 +138,7 @@ func _build_interface() -> void:
 	world.setup(state)
 
 	_build_console()
+	_build_human_current_readout()
 	_build_terminal()
 	_build_result_overlay()
 
@@ -172,23 +173,23 @@ func _build_console() -> void:
 	column.add_child(warning_box)
 	var warning_title := _label("power-warning-title", "! REACTOR SAFETY WARNING", 14, AMBER)
 	warning_box.add_child(warning_title)
-	var warning := _label("power-warning-description", "Power above 80% damages an unshielded field operator.", 13, TEXT)
+	var warning := _label("power-warning-description", "Current above 80A damages an unshielded field operator.", 13, TEXT)
 	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	warning.custom_minimum_size.y = 37
 	warning_box.add_child(warning)
 
 	var power_row := HBoxContainer.new()
 	column.add_child(power_row)
-	var power_label := _label("reactor-power-label", "REACTOR POWER", 13, MUTED)
+	var power_label := _label("reactor-power-label", "REACTOR CURRENT", 13, MUTED)
 	power_label.custom_minimum_size.x = 180
 	power_row.add_child(power_label)
-	power_value_label = _label("reactor-power-value", "30%", 17, CYAN)
+	power_value_label = _label("reactor-power-value", "30 A", 17, CYAN)
 	power_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	power_value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	power_row.add_child(power_value_label)
 	power_slider = HSlider.new()
 	power_slider.name = "ReactorPower"
-	_public(power_slider, "reactor-power", ["set_value"])
+	_public(power_slider, "reactor-current", ["set_value"])
 	power_slider.min_value = 0
 	power_slider.max_value = 100
 	power_slider.step = 1
@@ -204,33 +205,30 @@ func _build_console() -> void:
 	shield_check.toggled.connect(state.set_shield)
 	column.add_child(shield_check)
 
-	var route_label := _label("power-route-label", "POWER ROUTE", 13, MUTED)
-	column.add_child(route_label)
-	route_select = OptionButton.new()
-	route_select.name = "PowerRoute"
-	_public(route_select, "power-route", ["select"])
-	route_select.add_item("Primary / Door systems")
-	route_select.add_item("Maintenance / Suppress laser 6s")
-	route_select.item_selected.connect(state.set_route)
-	column.add_child(route_select)
-
-	var door_row := HBoxContainer.new()
-	door_row.add_theme_constant_override("separation", 8)
-	column.add_child(door_row)
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 6)
+	column.add_child(action_row)
 	door_button = Button.new()
 	door_button.name = "DoorAControl"
 	_public(door_button, "door-a-control", ["click"])
 	door_button.text = "OPEN DOOR A"
-	door_button.custom_minimum_size = Vector2(176, 40)
+	door_button.custom_minimum_size = Vector2(116, 44)
 	door_button.pressed.connect(state.try_open_door_a)
-	door_row.add_child(door_button)
+	action_row.add_child(door_button)
 	exit_button = Button.new()
 	exit_button.name = "ExitControl"
 	_public(exit_button, "exit-control", ["click"])
 	exit_button.text = "RELEASE EXIT"
-	exit_button.custom_minimum_size = Vector2(176, 40)
+	exit_button.custom_minimum_size = Vector2(116, 44)
 	exit_button.pressed.connect(state.try_unlock_exit)
-	door_row.add_child(exit_button)
+	action_row.add_child(exit_button)
+	suppress_laser_button = Button.new()
+	suppress_laser_button.name = "SuppressLaser"
+	_public(suppress_laser_button, "suppress-laser", ["click"])
+	suppress_laser_button.text = "Suppress Laser 6s"
+	suppress_laser_button.custom_minimum_size = Vector2(126, 44)
+	suppress_laser_button.pressed.connect(state.suppress_laser)
+	action_row.add_child(suppress_laser_button)
 
 	column.add_child(_separator())
 	status_container = VBoxContainer.new()
@@ -243,6 +241,32 @@ func _build_console() -> void:
 	laser_status_label = _label("laser-status", "Laser: ACTIVE", 13, RED)
 	for item in [location_label, shield_status_label, door_status_label, laser_status_label]:
 		status_container.add_child(item)
+	_agent_only(panel)
+
+
+func _build_human_current_readout() -> void:
+	var panel := PanelContainer.new()
+	panel.name = "FieldCurrentReadout"
+	panel.set_meta("gua_id", "field-current-readout")
+	panel.set_meta("gua_agent_exposure", "private")
+	panel.position = Vector2(854, 92)
+	panel.size = Vector2(408, 480)
+	add_child(panel)
+	var center := CenterContainer.new()
+	panel.add_child(center)
+	var column := VBoxContainer.new()
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 12)
+	center.add_child(column)
+	var title := _label("field-current-title", "CURRENT FLOW", 16, MUTED)
+	title.set_meta("gua_agent_exposure", "private")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(title)
+	current_readout_label = _label("field-current-value", "30 A", 64, CYAN)
+	current_readout_label.set_meta("gua_agent_exposure", "private")
+	current_readout_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	current_readout_label.custom_minimum_size = Vector2(300, 90)
+	column.add_child(current_readout_label)
 
 
 func _build_terminal() -> void:
@@ -259,65 +283,67 @@ func _build_terminal() -> void:
 	margin.add_theme_constant_override("margin_bottom", 10)
 	panel.add_child(margin)
 	var root_row := HBoxContainer.new()
-	root_row.add_theme_constant_override("separation", 16)
+	root_row.add_theme_constant_override("separation", 18)
 	margin.add_child(root_row)
-
-	var agent_column := VBoxContainer.new()
-	agent_column.custom_minimum_size.x = 435
-	root_row.add_child(agent_column)
-	var agent_title := _label("agent-message-title", "CONTROL > FIELD", 12, CYAN)
-	agent_column.add_child(agent_title)
-	var send_row := HBoxContainer.new()
-	agent_column.add_child(send_row)
-	message_draft = LineEdit.new()
-	message_draft.name = "AgentMessageDraft"
-	_public(message_draft, "agent-message-draft", ["set_value", "focus"])
-	message_draft.placeholder_text = "Message the field operator..."
-	message_draft.max_length = 180
-	message_draft.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	message_draft.text_submitted.connect(func(_text: String): _send_agent_message())
-	send_row.add_child(message_draft)
-	var send := Button.new()
-	send.name = "SendAgentMessage"
-	_public(send, "send-agent-message", ["click"])
-	send.text = "SEND"
-	send.custom_minimum_size.x = 70
-	send.pressed.connect(_send_agent_message)
-	send_row.add_child(send)
-	received_message = _label("received-agent-message", "", 12, TEXT)
-	received_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	received_message.custom_minimum_size.y = 34
-	agent_column.add_child(received_message)
-
-	var reply_column := VBoxContainer.new()
-	reply_column.custom_minimum_size.x = 370
-	root_row.add_child(reply_column)
-	var reply_title := _label("human-reply-title", "FIELD > CONTROL", 12, AMBER)
-	reply_column.add_child(reply_title)
-	var reply_buttons := HBoxContainer.new()
-	reply_buttons.add_theme_constant_override("separation", 5)
-	reply_column.add_child(reply_buttons)
-	for data in [["human-ready", "READY"], ["human-wait", "WAIT"], ["human-need-shield", "NEED SHIELD"], ["human-repeat", "REPEAT"]]:
-		var button := Button.new()
-		button.name = str(data[0]).to_pascal_case()
-		_public(button, data[0], ["click"])
-		button.text = data[1]
-		button.custom_minimum_size.y = 34
-		button.pressed.connect(state.send_human_reply.bind(data[1].capitalize()))
-		reply_buttons.add_child(button)
-	human_reply = _label("latest-human-reply", "No response yet", 12, TEXT)
-	reply_column.add_child(human_reply)
 
 	var history_column := VBoxContainer.new()
 	history_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root_row.add_child(history_column)
-	var history_title := _label("communication-history-title", "SIGNAL LOG", 12, MUTED)
+	var history_title := _label("communication-history-title", "COMMS", 12, CYAN)
 	history_column.add_child(history_title)
 	history_label = _label("communication-history", "", 11, Color("9db8c3"))
 	history_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	history_label.clip_text = true
 	history_label.custom_minimum_size.y = 70
 	history_column.add_child(history_label)
+
+	var human_column := VBoxContainer.new()
+	human_column.custom_minimum_size.x = 430
+	human_column.set_meta("gua_agent_exposure", "private")
+	root_row.add_child(human_column)
+	var composer_title := _label("human-message-title", "MESSAGE", 12, MUTED)
+	composer_title.set_meta("gua_agent_exposure", "private")
+	human_column.add_child(composer_title)
+	var human_send_row := HBoxContainer.new()
+	human_send_row.set_meta("gua_agent_exposure", "private")
+	human_column.add_child(human_send_row)
+	human_message_draft = LineEdit.new()
+	human_message_draft.name = "HumanMessageDraft"
+	_private(human_message_draft, "human-message-draft")
+	human_message_draft.placeholder_text = "Message AI Control..."
+	human_message_draft.max_length = 180
+	human_message_draft.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	human_message_draft.text_submitted.connect(func(_text: String): _send_human_message())
+	human_send_row.add_child(human_message_draft)
+	var human_send := Button.new()
+	human_send.name = "SendHumanMessage"
+	_private(human_send, "send-human-message")
+	human_send.text = "SEND"
+	human_send.custom_minimum_size.x = 70
+	human_send.pressed.connect(_send_human_message)
+	human_send_row.add_child(human_send)
+
+	# The AI composer remains visible to Gua but is transparent and cannot receive human input.
+	var agent_send_row := HBoxContainer.new()
+	agent_send_row.name = "AgentComposer"
+	agent_send_row.position = Vector2(790, 32)
+	agent_send_row.size = Vector2(430, 42)
+	panel.add_child(agent_send_row)
+	message_draft = LineEdit.new()
+	message_draft.name = "AgentMessageDraft"
+	_public(message_draft, "agent-message-draft", ["set_value"])
+	message_draft.placeholder_text = "Message the field operator..."
+	message_draft.max_length = 180
+	message_draft.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	agent_send_row.add_child(message_draft)
+	var agent_send := Button.new()
+	agent_send.name = "SendAgentMessage"
+	_public(agent_send, "send-agent-message", ["click"])
+	agent_send.text = "SEND"
+	agent_send.custom_minimum_size.x = 70
+	agent_send.pressed.connect(_send_agent_message)
+	agent_send_row.add_child(agent_send)
+	_agent_only(agent_send_row)
 
 
 func _build_result_overlay() -> void:
@@ -360,17 +386,16 @@ func _sync_ui() -> void:
 	door_status_label.text = "DOORS     A: %s  /  EXIT: %s" % ["OPEN" if state.door_a_open else "LOCKED", "OPEN" if state.exit_unlocked else "LOCKED"]
 	laser_status_label.text = "LASER     %s" % ("ACTIVE" if state.laser_is_active() else "SUPPRESSED")
 	laser_status_label.add_theme_color_override("font_color", RED if state.laser_is_active() else GREEN)
-	power_value_label.text = "%d%%" % int(state.reactor_power)
-	received_message.text = state.latest_agent_message
-	human_reply.text = "Latest: %s" % state.latest_human_reply
+	power_value_label.text = "%d A" % int(state.reactor_power)
+	current_readout_label.text = "%d A" % int(state.reactor_power)
 	history_label.text = "\n".join(state.message_history.slice(maxi(0, state.message_history.size() - 3)))
 	if not power_slider.has_focus(): power_slider.set_value_no_signal(state.reactor_power)
 	shield_check.set_pressed_no_signal(state.shield_enabled)
-	route_select.select(state.power_route)
 	door_button.disabled = state.door_a_open or state.mission_complete or state.mission_failed
 	door_button.text = "DOOR A OPEN" if state.door_a_open else "OPEN DOOR A"
 	exit_button.disabled = state.exit_unlocked or state.mission_complete or state.mission_failed
 	exit_button.text = "EXIT RELEASED" if state.exit_unlocked else "RELEASE EXIT"
+	suppress_laser_button.disabled = state.mission_complete or state.mission_failed
 	_sync_conditional_statuses()
 
 
@@ -397,6 +422,11 @@ func _status(id: String, text: String, visible: bool, color: Color) -> void:
 func _send_agent_message() -> void:
 	if state.send_agent_message(message_draft.text):
 		message_draft.clear()
+
+
+func _send_human_message() -> void:
+	if state.send_human_message(human_message_draft.text):
+		human_message_draft.clear()
 
 
 func _show_result(success: bool) -> void:
@@ -427,6 +457,27 @@ func _public(control: Control, id: String, actions: Array) -> Control:
 	control.set_meta("gua_agent_exposure", "auto")
 	control.set_meta("gua_agent_allowed_actions", actions)
 	return control
+
+
+func _private(control: Control, id: String) -> Control:
+	control.set_meta("gua_id", id)
+	control.set_meta("gua_agent_exposure", "private")
+	control.set_meta("gua_agent_allowed_actions", [])
+	return control
+
+
+func _agent_only(control: Control) -> void:
+	control.modulate.a = 0.0
+	_disable_human_input(control)
+
+
+func _disable_human_input(node: Node) -> void:
+	if node is Control:
+		var item := node as Control
+		item.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		item.focus_mode = Control.FOCUS_NONE
+	for child in node.get_children():
+		_disable_human_input(child)
 
 
 func _separator() -> HSeparator:

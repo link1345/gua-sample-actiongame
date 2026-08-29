@@ -3,6 +3,21 @@ name: Build and deploy Godot Web game
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/deploy-pages.yml"
+      - "assets/**"
+      - "scenes/**"
+      - "scripts/**"
+      - "tests/**"
+      - "web/**"
+      - "NuGet.Config"
+      - "bun.lock"
+      - "export_presets.cfg"
+      - "package.json"
+      - "project.godot"
+      - "tsconfig.json"
   workflow_dispatch:
 
 permissions:
@@ -11,7 +26,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -60,8 +75,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "bun install failed with exit code $LASTEXITCODE" }
           bun run check:webmcp
           if ($LASTEXITCODE -ne 0) { throw "WebMCP type check failed with exit code $LASTEXITCODE" }
-          & $env:GODOT_EXECUTABLE --headless --import --path .
-          if ($LASTEXITCODE -ne 0) { throw "Godot import failed with exit code $LASTEXITCODE" }
+          $extensionPath = "addons/gua/gua.gdextension"
+          $disabledExtensionPath = "$extensionPath.ci-import-disabled"
+          Move-Item -LiteralPath $extensionPath -Destination $disabledExtensionPath
+          try {
+            & $env:GODOT_EXECUTABLE --headless --import --path .
+            $importExitCode = $LASTEXITCODE
+          }
+          finally {
+            Move-Item -LiteralPath $disabledExtensionPath -Destination $extensionPath
+          }
+          if ($importExitCode -ne 0) { throw "Godot import failed with exit code $importExitCode" }
           & $env:GODOT_EXECUTABLE --headless --path . --script res://tests/mission_smoke.gd
           if ($LASTEXITCODE -ne 0) { throw "Godot mission smoke failed with exit code $LASTEXITCODE" }
 
@@ -78,11 +102,14 @@ jobs:
         run: scripts/build-web.ps1 -GodotExecutable $env:GODOT_EXECUTABLE
 
       - uses: actions/configure-pages@v5
+        if: github.event_name != 'pull_request'
       - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
         with:
           path: build/web
 
   deploy:
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

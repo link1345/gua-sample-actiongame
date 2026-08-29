@@ -18,11 +18,11 @@
 
 代表的な協力場面：
 
-1. 人間がDoor Aへ到着する。
-2. AIが「シールドなしで電力を80%より上げると、相棒がダメージを受ける」という警告を読む。
-3. AIがゲーム内メッセージで人間に待機を求める。
-4. AIがシールドを有効化し、電力を供給して扉を開ける。
-5. 人間が先へ進み、AIは次のsemantic mission stateを待つ。
+1. タイトル画面でAIがWebMCPからゲームを開始する。人間にはボタンが見えるが押せない。
+2. 人間がDoor Aへ到着する。
+3. AIが「シールドなしで電流を80Aより上げると、相棒がダメージを受ける」という警告を読む。
+4. AIがシールドを有効化し、電流を上げて扉を開ける。
+5. 人間が先へ進み、AIは次のsemantic mission stateを読む。
 
 ## WebMCPを使う理由
 
@@ -54,6 +54,7 @@ Guaは、安定したnode ID、role、label、text、state、対応action、リ�
 - ミッション条件を表すsemantic status node
 - 公開URLへ配置できるWebビルド
 - 2タブで開いた場合のゲーム状態分離
+- ミッションをまたいで維持される、人間専用の日英UI切替
 
 ## 技術構成
 
@@ -74,13 +75,18 @@ Guaは、安定したnode ID、role、label、text、state、対応action、リ�
 
 ブラウザネイティブ経路では、外部MCPサーバーやWebSocket接続を必要としません。
 
+Godot Canvas内でも日本語を安定表示するため、WebビルドにはSIL Open Font LicenseのM PLUS 1pを同梱しています。ライセンスは`assets/fonts/OFL-MPLUS1p.txt`に収録しています。
+
 ## 遊び方
 
-1. 人間はWASDまたは矢印キーでField OperatorをDoor Aまで移動し、チャットでAIへ知らせます。
-2. AIは専用コンソールで`FIELD SHIELD`を有効にし、電流を80Aより上へ設定して`OPEN DOOR A`を押します。
-3. 人間は表示された電流値を確認し、Door Aを通過します。
-4. AIが`Suppress Laser 6s`を押したら、人間は6秒間の停止中にレーザー区画を通過します。
-5. Extraction zoneへ到着したことをチャットで伝え、AIが`RELEASE EXIT`を押したら出口へ進みます。
+1. AIがタイトルのSemantic UIを読み、`click_node("play-game")`を実行します。開始ボタンはマウス・キーボード入力を無視するため、人間だけでは開始できません。
+2. 人間はWASDまたは矢印キーでField OperatorをDoor Aまで移動し、チャットでAIへ知らせます。
+3. AIは専用コンソールで`FIELD SHIELD`を有効にし、電流を80Aより上へ設定して`OPEN DOOR A`を押します。
+4. 人間は表示された電流値を確認し、Door Aを通過します。
+5. AIが`Suppress Laser 6s`を押したら、人間は`laser-suppression-remaining`が6秒から減る間にレーザー区画を通過します。
+6. 人間がExtraction Zoneへ到着すると`RELEASE EXIT`が有効になり、AIが出口を解放します。
+
+人間はタイトル画面・ミッション中を問わず、全UIを日本語／英語に切り替えられます。このボタンは`private`でAIのPlayer投影には出ません。システム生成メッセージは選択言語で再描画され、人間とAIが入力した自由文は原文を維持します。
 
 シールドなしで80Aを超えるとHPが減り、レーザーへ触れてもダメージを受けます。人間にはAI Control Consoleの内容や操作部品は表示されず、現在の電流値と共通チャットだけが表示されます。
 
@@ -110,7 +116,7 @@ Semantic actionを含むミッション試験：
 godot --headless --path . --script res://tests/mission_smoke.gd
 ```
 
-この試験はPlayer Tree、AI専用Control、人間専用表示の除外、危険／安全な電力経路、`set_value`、`set_checked`、3つの操作ボタン、双方向チャット、条件status、相関完了を確認します。
+この試験は開始前停止、AI専用開始、Player Tree、人間専用UIの除外、ボタン前提条件、レーザー残り時間、目標遷移、日英再描画、自由文保持、脱出済み所在地、再プレイ時のAI再承認、相関完了を確認します。
 
 ## AI Control Operator向け手順
 
@@ -118,6 +124,7 @@ WebMCP対応ブラウザでゲームを開くと、ページ内に`get_ui_tree`�
 
 ```text
 get_ui_tree()
+click_node("play-game")
 set_value("agent-message-draft", "Wait at Door A. I will enable the shield first.")
 click_node("send-agent-message")
 wait_for_node("partner-at-door-a")
@@ -126,6 +133,8 @@ set_value("reactor-current", "85")
 click_node("door-a-control")
 click_node("suppress-laser")
 ```
+
+前提条件は安定ID `door-a-requirement`、`exit-requirement`、`laser-suppression-requirement`で公開します。読み取り専用の`laser-suppression-remaining`は、0～6秒の値を0.1秒単位で公開します。`play-game`はタイトル画面だけに現れ、再プレイ時もAIによるクリックが必要です。
 
 ブラウザ経路は常にGuaのPlayer投影を使います。AI専用Control Consoleはこの投影にだけ公開し、人間専用の電流計とチャット入力は`private`としてAIから除外します。ゲーム状態とツール登録はタブごとに独立します。
 

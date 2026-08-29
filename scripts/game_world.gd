@@ -1,6 +1,8 @@
 class_name SignalRelayWorld
 extends Control
 
+const GameTextScript := preload("res://scripts/game_text.gd")
+
 signal world_state_changed
 
 const WORLD_SIZE := Vector2(820, 480)
@@ -23,14 +25,20 @@ var player_position := Vector2(92, 320)
 var velocity := Vector2.ZERO
 var hit_cooldown := 0.0
 var intro_pulse := 0.0
+var active := false
 
 
 func setup(mission_state: MissionState) -> void:
 	state = mission_state
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_process(true)
-	set_process_unhandled_input(true)
+	set_active(false)
 	reset_player()
+
+
+func set_active(value: bool) -> void:
+	active = value
+	set_process(value)
+	set_process_unhandled_input(value)
 
 
 func reset_player() -> void:
@@ -41,7 +49,7 @@ func reset_player() -> void:
 
 
 func _process(delta: float) -> void:
-	if state == null:
+	if state == null or not active:
 		return
 	state.tick(delta)
 	intro_pulse += delta
@@ -92,7 +100,7 @@ func _update_hazard() -> void:
 		return
 	if absf(player_position.x - LASER_X) < 22.0:
 		hit_cooldown = 1.0
-		state.damage(28, "Laser contact")
+		state.damage(28, "laser")
 
 
 func _draw() -> void:
@@ -105,16 +113,16 @@ func _draw() -> void:
 	# Station walls and the playable corridor.
 	draw_rect(Rect2(0, 0, WORLD_SIZE.x, 74), COLORS.wall)
 	draw_rect(Rect2(0, WORLD_SIZE.y - 18, WORLD_SIZE.x, 18), COLORS.wall)
-	draw_string(ThemeDB.fallback_font, Vector2(24, 45), "SECTOR A // FIELD FEED", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("82aabb"))
-	draw_string(ThemeDB.fallback_font, Vector2(650, 45), "LIVE  %s" % state.format_time() if state else "LIVE", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, COLORS.green)
+	draw_string(get_theme_default_font(), Vector2(24, 45), _text("world_field_feed"), HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("82aabb"))
+	draw_string(get_theme_default_font(), Vector2(650, 45), _text("world_live", [state.format_time()]) if state else "", HORIZONTAL_ALIGNMENT_LEFT, -1, 17, COLORS.green)
 
-	_draw_zone(Rect2(42, 105, 225, 330), "ARRIVAL BAY", Color("173240"))
-	_draw_zone(Rect2(368, 105, 105, 330), "SECTOR A", Color("152b36"))
-	_draw_zone(Rect2(486, 105, 148, 330), "LASER CORRIDOR", Color("351b2b"))
-	_draw_zone(Rect2(650, 105, 125, 330), "EXTRACTION", Color("163328"))
+	_draw_zone(Rect2(42, 105, 225, 330), _text("world_arrival"), Color("173240"))
+	_draw_zone(Rect2(368, 105, 105, 330), _text("world_sector"), Color("152b36"))
+	_draw_zone(Rect2(486, 105, 148, 330), _text("world_laser"), Color("351b2b"))
+	_draw_zone(Rect2(650, 105, 125, 330), _text("world_extraction"), Color("163328"))
 
-	_draw_door(DOOR_X, "DOOR A", state != null and state.door_a_open)
-	_draw_door(EXIT_X, "EXIT", state != null and state.exit_unlocked)
+	_draw_door(DOOR_X, _text("world_door"), state != null and state.door_a_open)
+	_draw_door(EXIT_X, _text("world_exit"), state != null and state.exit_unlocked)
 	_draw_laser()
 	_draw_player()
 
@@ -122,7 +130,7 @@ func _draw() -> void:
 func _draw_zone(rect: Rect2, label: String, color: Color) -> void:
 	draw_rect(rect, color)
 	draw_rect(rect, Color(color, 0.9), false, 2.0)
-	draw_string(ThemeDB.fallback_font, rect.position + Vector2(12, 28), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("6f94a4"))
+	draw_string(get_theme_default_font(), rect.position + Vector2(12, 28), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("6f94a4"))
 
 
 func _draw_door(x: float, label: String, open: bool) -> void:
@@ -133,7 +141,7 @@ func _draw_door(x: float, label: String, open: bool) -> void:
 	else:
 		draw_rect(Rect2(x - 8, 90, 16, 75), color)
 		draw_rect(Rect2(x - 8, 380, 16, 75), color)
-	draw_string(ThemeDB.fallback_font, Vector2(x - 55, 84), "%s %s" % [label, "OPEN" if open else "LOCKED"], HORIZONTAL_ALIGNMENT_CENTER, 110, 12, color)
+	draw_string(get_theme_default_font(), Vector2(x - 55, 84), "%s %s" % [label, _text("state_open") if open else _text("state_locked")], HORIZONTAL_ALIGNMENT_CENTER, 110, 12, color)
 
 
 func _draw_laser() -> void:
@@ -144,7 +152,7 @@ func _draw_laser() -> void:
 	for offset in [-30.0, 0.0, 30.0]:
 		var width := 4.0 + sin(intro_pulse * 8.0 + offset) if active else 2.0
 		draw_line(Vector2(LASER_X + offset, 120), Vector2(LASER_X + offset, 425), laser_color, width)
-	draw_string(ThemeDB.fallback_font, Vector2(505, 455), "ACTIVE" if active else "SUPPRESSED", HORIZONTAL_ALIGNMENT_CENTER, 110, 13, laser_color)
+	draw_string(get_theme_default_font(), Vector2(505, 455), _text("state_active") if active else _text("state_suppressed"), HORIZONTAL_ALIGNMENT_CENTER, 110, 13, laser_color)
 
 
 func _draw_player() -> void:
@@ -157,4 +165,8 @@ func _draw_player() -> void:
 	var body_color := COLORS.red if hit_cooldown > 0.0 else Color("e9f7ff")
 	draw_circle(player_position, PLAYER_RADIUS, body_color)
 	draw_circle(player_position, 6.0, COLORS.cyan)
-	draw_string(ThemeDB.fallback_font, player_position + Vector2(-26, -22), "FIELD", HORIZONTAL_ALIGNMENT_CENTER, 52, 11, Color("d8f7ff"))
+	draw_string(get_theme_default_font(), player_position + Vector2(-26, -22), _text("world_field"), HORIZONTAL_ALIGNMENT_CENTER, 52, 11, Color("d8f7ff"))
+
+
+func _text(key: String, values: Array = []) -> String:
+	return GameTextScript.text(state.locale if state != null else GameTextScript.JA, key, values)

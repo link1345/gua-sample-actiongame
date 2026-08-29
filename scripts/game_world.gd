@@ -191,7 +191,7 @@ func _draw_player() -> void:
 
 
 func _text(key: String, values: Array = []) -> String:
-	return GameTextScript.text(state.locale if state != null else GameTextScript.JA, key, values)
+	return GameTextScript.text(state.locale if state != null else GameTextScript.EN, key, values)
 
 
 func _build_world_objects() -> void:

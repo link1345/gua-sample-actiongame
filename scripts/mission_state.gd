@@ -13,7 +13,7 @@ const LASER_STAGING_TARGET_X := 470.0
 const EXTRACTION_TARGET_X := 720.0
 const AIRLOCK_TARGET_X := 770.0
 
-var locale := GameTextScript.JA
+var locale := GameTextScript.EN
 var hp := MAX_HP
 var shield_enabled := false
 var reactor_power := 30.0

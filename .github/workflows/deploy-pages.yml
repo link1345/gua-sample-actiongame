@@ -7,17 +7,6 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/deploy-pages.yml"
-      - "assets/**"
-      - "scenes/**"
-      - "scripts/**"
-      - "tests/**"
-      - "web/**"
-      - "NuGet.Config"
-      - "bun.lock"
-      - "export_presets.cfg"
-      - "package.json"
-      - "project.godot"
-      - "tsconfig.json"
   workflow_dispatch:
 
 permissions:

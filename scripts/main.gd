@@ -48,8 +48,6 @@ var door_button: Button
 var exit_button: Button
 var suppress_laser_button: Button
 var laser_remaining: ProgressBar
-var message_draft: LineEdit
-var human_message_draft: LineEdit
 var history_label: Label
 var overlay: ColorRect
 var overlay_title: Label
@@ -431,51 +429,6 @@ func _build_terminal() -> void:
 	history_label.clip_text = true
 	history_label.custom_minimum_size.y = 70
 	history_column.add_child(history_label)
-	var human_column := VBoxContainer.new()
-	human_column.custom_minimum_size.x = 430
-	human_column.set_meta("gua_agent_exposure", "private")
-	root_row.add_child(human_column)
-	var composer_title := _localized_label("human-message-title", "message", 12, MUTED)
-	composer_title.set_meta("gua_agent_exposure", "private")
-	human_column.add_child(composer_title)
-	var human_send_row := HBoxContainer.new()
-	human_send_row.set_meta("gua_agent_exposure", "private")
-	human_column.add_child(human_send_row)
-	human_message_draft = LineEdit.new()
-	human_message_draft.name = "HumanMessageDraft"
-	_private(human_message_draft, "human-message-draft")
-	_localized_placeholder(human_message_draft, "human_message_placeholder")
-	human_message_draft.max_length = 180
-	human_message_draft.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	human_message_draft.text_submitted.connect(func(_value: String): _send_human_message())
-	human_send_row.add_child(human_message_draft)
-	var human_send := Button.new()
-	human_send.name = "SendHumanMessage"
-	_private(human_send, "send-human-message")
-	_localized(human_send, "send")
-	human_send.custom_minimum_size.x = 70
-	human_send.pressed.connect(_send_human_message)
-	human_send_row.add_child(human_send)
-	var agent_send_row := HBoxContainer.new()
-	agent_send_row.name = "AgentComposer"
-	agent_send_row.position = Vector2(790, 32)
-	agent_send_row.size = Vector2(430, 42)
-	panel.add_child(agent_send_row)
-	message_draft = LineEdit.new()
-	message_draft.name = "AgentMessageDraft"
-	_public(message_draft, "agent-message-draft", ["set_value"])
-	_localized_placeholder(message_draft, "agent_message_placeholder")
-	message_draft.max_length = 180
-	message_draft.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	agent_send_row.add_child(message_draft)
-	var agent_send := Button.new()
-	agent_send.name = "SendAgentMessage"
-	_public(agent_send, "send-agent-message", ["click"])
-	_localized(agent_send, "send")
-	agent_send.custom_minimum_size.x = 70
-	agent_send.pressed.connect(_send_agent_message)
-	agent_send_row.add_child(agent_send)
-	_agent_only(agent_send_row)
 
 
 func _build_result_overlay() -> void:
@@ -623,16 +576,6 @@ func _status(id: String, key: String, visible: bool, color: Color) -> void:
 		node.queue_free()
 
 
-func _send_agent_message() -> void:
-	if state.send_agent_message(message_draft.text):
-		message_draft.clear()
-
-
-func _send_human_message() -> void:
-	if state.send_human_message(human_message_draft.text):
-		human_message_draft.clear()
-
-
 func _show_result(success: bool) -> void:
 	world.set_active(false)
 	overlay.visible = true
@@ -669,19 +612,11 @@ func _localized(control: Control, key: String) -> Control:
 	return control
 
 
-func _localized_placeholder(control: LineEdit, key: String) -> LineEdit:
-	control.set_meta("localization_placeholder_key", key)
-	control.placeholder_text = _text(key)
-	return control
-
-
 func _sync_localized_tree(node: Node) -> void:
 	if node is Control and node.has_meta("localization_key"):
 		var control := node as Control
 		if control is Label or control is Button or control is CheckBox:
 			control.text = _text(str(control.get_meta("localization_key")))
-	if node is LineEdit and node.has_meta("localization_placeholder_key"):
-		node.placeholder_text = _text(str(node.get_meta("localization_placeholder_key")))
 	for child in node.get_children():
 		_sync_localized_tree(child)
 

@@ -28,6 +28,8 @@ public sealed class MissionUiTests
             "play-game",
             timeout: UiTimeout,
             pollInterval: PollInterval);
+        Assert.Throws<InvalidOperationException>(() => host.Context.FindNodeById("human-message-draft"));
+        Assert.Throws<InvalidOperationException>(() => host.Context.FindNodeById("agent-message-draft"));
         GuaAssertions.GetById(host.Context, "title-game-description").ToBeVisible();
         GuaAssertions.GetById(host.Context, "title-human-role").ToBeVisible();
         GuaAssertions.GetById(host.Context, "title-ai-role").ToBeVisible();
@@ -46,6 +48,8 @@ public sealed class MissionUiTests
             "reactor-current",
             timeout: UiTimeout,
             pollInterval: PollInterval);
+        Assert.Throws<InvalidOperationException>(() => host.Context.FindNodeById("human-message-draft"));
+        Assert.Throws<InvalidOperationException>(() => host.Context.FindNodeById("agent-message-draft"));
         await GuaAssertions.WaitForDisabledAsync(
             host.Context,
             "door-a-control",

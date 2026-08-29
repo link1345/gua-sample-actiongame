@@ -1,8 +1,8 @@
 # Gua Signal Relay
 
-人間の現場担当者とAIの管制担当者が、同じミッションを観測し、ゲーム内で連絡を取りながら協力するブラウザ向けアクションゲームです。
+人間の現場担当者とAIの管制担当者が、同じミッションを観測し、AIとの直接会話で相談しながら協力するブラウザ向けアクションゲームです。
 
-[Godot](https://godotengine.org/)と[Gua](https://github.com/link1345/gua)を使い、Canvas／WebGLゲームをSemantic UI Tree経由でWebMCP対応させるデモとして開発します。人間はキャラクターを直接操作し、AIはリアルタイムのUI Treeを読み、管制コンソールを操作し、条件を待ち、ゲーム内メッセージを人間へ送ります。
+[Godot](https://godotengine.org/)と[Gua](https://github.com/link1345/gua)を使い、Canvas／WebGLゲームをSemantic UI Tree経由でWebMCP対応させるデモとして開発します。人間はキャラクターを直接操作し、AIはリアルタイムのUI Treeを読み、管制コンソールを操作し、条件を待ちます。会話はゲーム外のAI入力欄で行います。
 
 > 状態：プレイ可能なMVPを実装済みです。Gua `v1.0.2`でGodot Web Release、Gua Semantic UI、ページ内WebMCP bundleをローカル検証しています。GitHub Pagesは`main`更新時にワークフローから公開されます。
 
@@ -12,8 +12,8 @@
 
 舞台は事故が発生した研究施設です。
 
-- **人間 — 現場担当者：** キーボードで移動し、電流計を確認しながら危険区域を突破し、チャットでAIへ連絡します。
-- **AI — 管制担当者：** 人間には表示されない専用コンソールで警告とミッション状態を読み、電流、シールド、扉、レーザーを操作して、ゲーム内チャットから人間へ連絡します。
+- **人間 — 現場担当者：** キーボードで移動し、電流計を確認しながら危険区域を突破します。AIとの相談はゲーム外の直接入力欄で行います。
+- **AI — 管制担当者：** 人間には表示されない専用コンソールで警告とミッション状態を読み、電流、シールド、扉、レーザーを操作します。
 - **共有ゲーム状態：** 人間とAIは、同じブラウザゲームの状態を観測・変更します。
 
 代表的な協力場面：
@@ -50,7 +50,8 @@ Guaは、安定したnode ID、role、label、text、state、対応action、リ�
 - 遠隔操作する扉2つ
 - 移動または周期的に作動する危険物1つ
 - AI専用の非表示Control Consoleと、人間専用の電流計
-- 人間とAIの双方向チャット
+- ミッションイベントを表示する読み取り専用システムログ
+- ゲーム外のAI入力欄を使った人間とAIの直接会話
 - ミッション条件を表すsemantic status node
 - 公開URLへ配置できるWebビルド
 - 2タブで開いた場合のゲーム状態分離
@@ -83,16 +84,16 @@ Godot Canvas内でも日本語を安定表示するため、WebビルドにはSI
 ## 遊び方
 
 1. AIがタイトルのSemantic UIを読み、`click_node("play-game")`を実行します。開始ボタンはマウス・キーボード入力を無視するため、人間だけでは開始できません。
-2. 人間はWASDまたは矢印キーでField OperatorをDoor Aまで移動し、チャットでAIへ知らせます。
+2. 人間はWASDまたは矢印キーでField OperatorをDoor Aまで移動します。必要な相談はゲーム外のAI入力欄で行います。
 3. AIは専用コンソールで`FIELD SHIELD`を有効にし、電流を80Aより上へ設定して`OPEN DOOR A`を押します。
 4. 人間は表示された電流値を確認し、Door Aを通過します。
 5. 人間は枠線で示されたレーザー待機地点で停止します。実際に到着した場合だけ、AIの`Suppress Laser 6s`が有効になります。
 6. AIは操作前に「レーザーが消えたら走る」と伝えます。人間は停止後のAI返信を待たず、ビームの消灯を合図に6秒以内で通過します。
 7. 人間がExtraction Zoneへ到着すると`RELEASE EXIT`が有効になり、AIが出口を解放します。
 
-人間はタイトル画面・ミッション中を問わず、全UIを日本語／英語に切り替えられます。このボタンは`private`でAIのPlayer投影には出ません。システム生成メッセージは選択言語で再描画され、人間とAIが入力した自由文は原文を維持します。
+人間はタイトル画面・ミッション中を問わず、全UIを日本語／英語に切り替えられます。このボタンは`private`でAIのPlayer投影には出ません。ゲーム内には自由文の入力欄を置かず、読み取り専用のシステムログだけを選択言語で再描画します。
 
-シールドなしで80Aを超えるとHPが減り、レーザーへ触れてもダメージを受けます。人間にはAI Control Consoleの内容や操作部品は表示されず、現在の電流値と共通チャットだけが表示されます。
+シールドなしで80Aを超えるとHPが減り、レーザーへ触れてもダメージを受けます。人間にはAI Control Consoleの内容や操作部品は表示されず、現在の電流値とシステムログだけが表示されます。
 
 ## ローカル実行とWebビルド
 
@@ -121,7 +122,7 @@ Semantic actionを含むミッション試験：
 godot --headless --path . --script res://tests/mission_smoke.gd
 ```
 
-この試験は開始前停止、AI専用開始、Player UI／World Object Tree、人間専用UIの除外、メートル単位の案内、ボタン前提条件、レーザー時刻とダメージ、目標遷移、日英再描画、自由文保持、脱出済み所在地、再プレイ時のAI再承認、相関完了を確認します。
+この試験は開始前停止、AI専用開始、Player UI／World Object Tree、人間専用UIの除外、ゲーム内メッセージ入力欄の非公開、メートル単位の案内、ボタン前提条件、レーザー時刻とダメージ、目標遷移、日英再描画、脱出済み所在地、再プレイ時のAI再承認、相関完了を確認します。
 
 `mission_smoke.gd`はゲーム内部で高速に状態遷移を検証する回帰試験です。これとは別に、`Gua.Testing.Godot`がGodotを別プロセスで起動し、WebSocket bridge越しに実際のSemantic UIを操作するUIテストを用意しています。
 
@@ -138,17 +139,15 @@ WebMCP対応ブラウザでゲームを開くと、ページ内に`get_ui_tree`�
 ```text
 get_ui_tree()
 click_node("play-game")
-set_value("agent-message-draft", "Wait at Door A. I will enable the shield first.")
-click_node("send-agent-message")
 wait_for_node("partner-at-door-a")
 set_checked("shield-enabled", true)
 set_value("reactor-current", "85")
 click_node("door-a-control")
 wait_for_node("partner-at-laser-staging")
-set_value("agent-message-draft", "レーザーが消えたら走ってください。次の返信は待たないでください。")
-click_node("send-agent-message")
 click_node("suppress-laser")
 ```
+
+「レーザーが消えたら走る」などの相談や合図は、ゲーム内ツールではなく、このゲームをプレイしているAIとの直接会話で行います。
 
 前提条件は安定ID `door-a-requirement`、`exit-requirement`、`laser-suppression-requirement`で公開します。読み取り専用の`laser-suppression-remaining`は、0～6秒の値を0.1秒単位で公開します。`play-game`はタイトル画面だけに現れ、再プレイ時もAIによるクリックが必要です。
 
@@ -162,9 +161,9 @@ find_world_objects({"id": "field-operator"})
 find_world_objects({"id": "laser-array"})
 ```
 
-レーザー接触は28HPで、最大1秒に1回です。停止終了そのものでは被弾せず、ビーム接触中だけダメージを受けます。再停止のクールダウンはありません。シールドなしで80A以下から80Aを超過させると34HPを失います。WebMCPの往復時間はブラウザエージェントに依存し、ゲーム側では保証しないため、後続チャットではなく画面上の消灯を開始合図にします。
+レーザー接触は28HPで、最大1秒に1回です。停止終了そのものでは被弾せず、ビーム接触中だけダメージを受けます。再停止のクールダウンはありません。シールドなしで80A以下から80Aを超過させると34HPを失います。WebMCPの往復時間はブラウザエージェントに依存し、ゲーム側では保証しないため、後続のAI応答ではなく画面上の消灯を開始合図にします。
 
-ブラウザ経路は常にGuaのPlayer投影を使います。AI専用Control Consoleはこの投影にだけ公開し、人間専用の電流計とチャット入力は`private`としてAIから除外します。ゲーム状態とツール登録はタブごとに独立します。
+ブラウザ経路は常にGuaのPlayer投影を使います。AI専用Control Consoleはこの投影にだけ公開し、人間専用の電流計は`private`としてAIから除外します。人間用・AI用ともゲーム内メッセージ入力は公開しません。ゲーム状態とツール登録はタブごとに独立します。
 
 ## 関連
 

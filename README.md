@@ -2,7 +2,7 @@
 
 A browser action game where a human field operator and an AI control-room partner must observe the same mission, communicate, and act together.
 
-Built with [Godot](https://godotengine.org/) and [Gua](https://github.com/link1345/gua), this project demonstrates semantic interaction with a Canvas/WebGL game through WebMCP. The human moves through the level directly, while the AI reads the live Semantic UI Tree, operates the control console, waits for mission conditions, and sends messages back into the game.
+Built with [Godot](https://godotengine.org/) and [Gua](https://github.com/link1345/gua), this project demonstrates semantic interaction with a Canvas/WebGL game through WebMCP. The human moves through the level directly, while the AI reads the live Semantic UI Tree, operates the control console, and waits for mission conditions. Conversation happens in the direct AI input outside the game.
 
 > Status: playable MVP implemented. The Godot Web Release, Gua Semantic UI, and in-page WebMCP bundle have been locally verified with Gua `v1.0.2`. The GitHub Pages workflow deploys updates from `main`.
 
@@ -12,8 +12,8 @@ English | [日本語](README-ja.md)
 
 The game takes place in a damaged research station.
 
-- **Human — Field Operator:** moves through hazards using keyboard controls, watches the current meter, and talks to the AI through chat.
-- **AI — Control Operator:** uses a dedicated console hidden from the human to read warnings and mission status, control current, shields, doors, and the laser, and communicate through in-game chat.
+- **Human — Field Operator:** moves through hazards using keyboard controls and watches the current meter. Coordination happens in the direct AI conversation outside the game.
+- **AI — Control Operator:** uses a dedicated console hidden from the human to read warnings and mission status and control current, shields, doors, and the laser.
 - **Shared game state:** both participants observe and change the same running browser game.
 
 A typical interaction:
@@ -50,7 +50,8 @@ The first playable build is one short two-to-three-minute mission containing:
 - Two remotely controlled doors
 - One moving or cycling hazard
 - An AI-only Control Console and human-only current meter
-- Bidirectional human/AI chat
+- A read-only system log for mission events
+- Direct human/AI conversation outside the game UI
 - Semantic status nodes for mission conditions
 - A Web build deployable at a public URL
 - Independent state when the game is opened in two browser tabs
@@ -83,16 +84,16 @@ The Web build bundles M PLUS 1p under the SIL Open Font License so Japanese text
 ## Play
 
 1. The AI reads the title Semantic UI and calls `click_node("play-game")`. The visible start button ignores mouse and keyboard input, so the human cannot begin the mission.
-2. The human moves the Field Operator to Door A with WASD or the arrow keys and tells the AI through chat.
+2. The human moves the Field Operator to Door A with WASD or the arrow keys. Any coordination happens in the direct AI conversation outside the game.
 3. The AI enables `FIELD SHIELD`, raises the current above 80A, and presses `OPEN DOOR A` in its private console.
 4. The human checks the displayed current and passes through Door A.
 5. The human stops at the outlined Laser Staging point. Only then does `Suppress Laser 6s` become enabled for the AI.
 6. Before pressing it, the AI tells the human to run when the beams visibly turn off. The human crosses during the six-second window without waiting for a follow-up AI message.
 7. At the Extraction Zone, the AI presses `RELEASE EXIT`, which becomes enabled only after the human arrives.
 
-The human can switch the whole UI between Japanese and English at any time. This language control is private and does not appear in the AI's Player projection. System-generated messages are redrawn in the selected language; free-form human and AI chat is preserved verbatim.
+The human can switch the whole UI between Japanese and English at any time. This language control is private and does not appear in the AI's Player projection. The game has no free-form message composer; its read-only system log is redrawn in the selected language.
 
-Applying more than 80A without the shield or touching the laser causes damage. The human sees only the live current value and shared chat—not the AI Control Console or its controls.
+Applying more than 80A without the shield or touching the laser causes damage. The human sees only the live current value and system log—not the AI Control Console or its controls.
 
 ## Local run and Web build
 
@@ -119,7 +120,7 @@ Run the correlated Semantic UI mission test with:
 godot --headless --path . --script res://tests/mission_smoke.gd
 ```
 
-The test covers the stopped title state, AI-only start, Player UI and World Object Trees, exclusion of human-only UI, meter-based guidance, prerequisite-driven enabled states, laser timing and damage, stable objectives, bilingual redraw, verbatim chat, evacuated location, mandatory AI restart, and request-correlated completion.
+The test covers the stopped title state, AI-only start, Player UI and World Object Trees, exclusion of human-only UI, absence of in-game message composers, meter-based guidance, prerequisite-driven enabled states, laser timing and damage, stable objectives, bilingual redraw, evacuated location, mandatory AI restart, and request-correlated completion.
 
 `mission_smoke.gd` is the fast in-process state-transition regression test. A separate `Gua.Testing.Godot` suite launches Godot as another process and operates the live Semantic UI over its WebSocket bridge:
 
@@ -136,17 +137,15 @@ A WebMCP-capable browser discovers `get_ui_tree`, `click_node`, `set_value`, `se
 ```text
 get_ui_tree()
 click_node("play-game")
-set_value("agent-message-draft", "Wait at Door A. I will enable the shield first.")
-click_node("send-agent-message")
 wait_for_node("partner-at-door-a")
 set_checked("shield-enabled", true)
 set_value("reactor-current", "85")
 click_node("door-a-control")
 wait_for_node("partner-at-laser-staging")
-set_value("agent-message-draft", "Run as soon as the laser beams turn off. Do not wait for my next message.")
-click_node("send-agent-message")
 click_node("suppress-laser")
 ```
+
+Coordination such as “run when the laser turns off” happens in the direct conversation with the AI playing the game, not through an in-game tool.
 
 Stable requirement nodes are `door-a-requirement`, `exit-requirement`, and `laser-suppression-requirement`. The read-only `laser-suppression-remaining` progress node exposes the current 0–6 second value in 0.1-second steps. `play-game` appears only on the title screen, and every replay requires a new AI click.
 
@@ -160,9 +159,9 @@ find_world_objects({"id": "field-operator"})
 find_world_objects({"id": "laser-array"})
 ```
 
-Laser contact deals 28 HP at most once per second. Suppression expiry itself causes no damage unless the human is touching a beam, and there is no re-suppression cooldown. Crossing above 80A from 80A or below while unshielded deals 34 HP. WebMCP round-trip duration depends on the browser agent and is not guaranteed by the game, which is why the visible laser state—not a later chat response—is the start signal.
+Laser contact deals 28 HP at most once per second. Suppression expiry itself causes no damage unless the human is touching a beam, and there is no re-suppression cooldown. Crossing above 80A from 80A or below while unshielded deals 34 HP. WebMCP round-trip duration depends on the browser agent and is not guaranteed by the game, which is why the visible laser state—not a later AI response—is the start signal.
 
-The browser path always uses Gua's Player projection. The AI-only Control Console is exposed only through that projection, while the human current meter and chat composer are marked `private` and excluded from the AI. Tool registrations and game state are isolated per browser tab.
+The browser path always uses Gua's Player projection. The AI-only Control Console is exposed only through that projection, while the human current meter is marked `private` and excluded from the AI. Neither human nor AI gets an in-game free-form message composer. Tool registrations and game state are isolated per browser tab.
 
 ## Related work
 

@@ -51,7 +51,8 @@ func _run() -> void:
 		_check(mission_tree.contains(id), "mission publishes %s" % id)
 	_check(not mission_tree.contains("play-game"), "title action is hidden during mission")
 	_check(not mission_tree.contains("field-current-readout"), "AI tree hides human-only current readout")
-	_check(not mission_tree.contains("human-message-draft"), "AI tree hides human chat composer")
+	_check(not mission_tree.contains("human-message-draft") and not mission_tree.contains("send-human-message"), "mission has no human message composer")
+	_check(not mission_tree.contains("agent-message-draft") and not mission_tree.contains("send-agent-message"), "mission has no in-game AI message composer")
 	var mission_world: String = game.ui.get_player_world_object_tree_json()
 	for id in ["sector-a", "field-operator", "door-a", "laser-staging-zone", "laser-array", "extraction-zone", "exit-airlock"]:
 		_check(mission_world.contains(id), "Player world tree publishes %s" % id)
@@ -131,19 +132,15 @@ func _run() -> void:
 	await _action(game, {"action": "click", "node_id": "exit-control"})
 	_check(game.state.exit_unlocked, "Exit releases at Extraction Zone")
 
-	# Generated messages localize, while human and AI free text remains unchanged.
-	await _action(game, {"action": "set_value", "node_id": "agent-message-draft", "value": "Move now!"})
-	await _action(game, {"action": "click", "node_id": "send-agent-message"})
-	game.human_message_draft.text = "了解。進みます。"
-	game.call("_send_human_message")
+	# The system log localizes without exposing an in-game conversation composer.
 	game.call("_toggle_locale")
 	_check(game.locale == "en", "human language toggle switches to English")
 	_check(game.state.objective().contains("airlock"), "objective redraws in English")
 	var english_history := "\n".join(game.state.rendered_message_history())
 	_check(english_history.contains("Door A unlocked"), "system history redraws in English")
-	_check(english_history.contains("Move now!") and english_history.contains("了解。進みます。"), "free-form chat remains verbatim")
 	game.ui.update("mission")
 	var english_tree: String = game.ui.get_player_ui_tree_json()
+	_check(not english_tree.contains("human-message-draft") and not english_tree.contains("agent-message-draft"), "message composers remain absent after switching")
 	_check(english_tree.contains("door-a-requirement") and english_tree.contains("laser-suppression-remaining"), "semantic IDs survive language changes")
 	_check(not english_tree.contains("language-toggle"), "language toggle remains private after switching")
 	game.world.refresh_semantics()

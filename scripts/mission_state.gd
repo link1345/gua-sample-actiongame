@@ -31,9 +31,6 @@ var laser_suppressed_until := 0.0
 var laser_suppression_started_at := -1.0
 var laser_suppression_activation_id := 0
 var operator_x := 92.0
-var latest_agent_message := ""
-var latest_agent_message_is_default := true
-var latest_human_message := ""
 var message_history: Array[Dictionary] = []
 var elapsed := 0.0
 
@@ -56,9 +53,6 @@ func reset() -> void:
 	laser_suppression_started_at = -1.0
 	laser_suppression_activation_id = 0
 	operator_x = 92.0
-	latest_agent_message_is_default = true
-	latest_agent_message = _text("message_initial")
-	latest_human_message = ""
 	message_history.clear()
 	elapsed = 0.0
 	append_localized_message("control", "message_initial")
@@ -69,8 +63,6 @@ func set_locale(value: String) -> void:
 	if value == locale:
 		return
 	locale = value
-	if latest_agent_message_is_default:
-		latest_agent_message = _text("message_initial")
 	changed.emit()
 
 
@@ -242,27 +234,6 @@ func damage(amount: int, reason: String) -> void:
 	changed.emit()
 
 
-func send_agent_message(text: String) -> bool:
-	var clean := text.strip_edges()
-	if clean.is_empty() or mission_complete or mission_failed:
-		return false
-	latest_agent_message = clean.left(180)
-	latest_agent_message_is_default = false
-	append_literal_message("control", latest_agent_message)
-	changed.emit()
-	return true
-
-
-func send_human_message(text: String) -> bool:
-	var clean := text.strip_edges()
-	if clean.is_empty() or mission_complete or mission_failed:
-		return false
-	latest_human_message = clean.left(180)
-	append_literal_message("field", latest_human_message)
-	changed.emit()
-	return true
-
-
 func complete() -> void:
 	if mission_complete or mission_failed:
 		return
@@ -279,17 +250,11 @@ func append_localized_message(sender_key: String, text_key: String, values: Arra
 	message_added.emit(_text("sender_" + sender_key), _text(text_key, values))
 
 
-func append_literal_message(sender_key: String, value: String) -> void:
-	message_history.push_back({"sender_key": sender_key, "literal": value})
-	_trim_messages()
-	message_added.emit(_text("sender_" + sender_key), value)
-
-
 func rendered_message_history() -> Array[String]:
 	var result: Array[String] = []
 	for entry in message_history:
 		var sender := _text("sender_" + str(entry.get("sender_key", "system")))
-		var body := str(entry.get("literal", "")) if entry.has("literal") else _text(str(entry.get("text_key", "")), entry.get("values", []))
+		var body := _text(str(entry.get("text_key", "")), entry.get("values", []))
 		result.push_back("%s  %s" % [sender, body])
 	return result
 

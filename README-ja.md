@@ -4,7 +4,7 @@
 
 [Godot](https://godotengine.org/)と[Gua](https://github.com/link1345/gua)を使い、Canvas／WebGLゲームをSemantic UI Tree経由でWebMCP対応させるデモとして開発します。人間はキャラクターを直接操作し、AIはリアルタイムのUI Treeを読み、管制コンソールを操作し、条件を待ち、ゲーム内メッセージを人間へ送ります。
 
-> 状態：企画・初期開発中。WebMCPランタイムは[Gua Issue #71](https://github.com/link1345/gua/issues/71)で実装中です。
+> 状態：プレイ可能なMVPを実装済みです。Gua `v1.0.2`でGodot Web Release、Gua Semantic UI、ページ内WebMCP bundleをローカル検証しています。GitHub Pagesは`main`更新時にワークフローから公開されます。
 
 [English](README.md) | 日本語
 
@@ -64,7 +64,70 @@ Guaは、安定したnode ID、role、label、text、state、対応action、リ�
 - ブラウザネイティブWebMCP
 - `gl_compatibility` renderer
 
+固定依存：
+
+- Gua Godot addon `v1.0.2`
+- `gua-webmcp` `v1.0.2`
+- `gua-world-tools` `v1.0.2`
+
+> Godot addonは公式Releaseの`gua-godot-addon-v1.0.2.zip`をSHA-256検証付きで導入します。Windows DebugとWeb Debug／Releaseのバイナリを同じarchiveから取得します。
+
 ブラウザネイティブ経路では、外部MCPサーバーやWebSocket接続を必要としません。
+
+## 遊び方
+
+1. WASDまたは矢印キーでField OperatorをDoor Aまで移動します。
+2. Control Consoleで先に`FIELD SHIELD`を有効にします。
+3. Reactor Powerを80%より上へ設定し、`OPEN DOOR A`を押します。
+4. Power Routeを`Maintenance`へ切り替え、6秒間のレーザー停止中に通過します。
+5. Extraction zoneへ到着したら`RELEASE EXIT`を押し、出口へ進みます。
+
+シールドなしで80%を超えるとHPが減り、レーザーへ触れてもダメージを受けます。通信端末ではAIが自由文を送り、人間は定型ボタンで返答できます。
+
+## ローカル実行とWebビルド
+
+必要環境はGodot 4.7、PowerShell 7、Bunです。
+
+```powershell
+# Gua v1.0.2 Windows/Web addonを公式SHA-256検証付きで導入
+.\scripts\install-gua.ps1
+
+# 初回だけ。Godot公式アーカイブは約1.2GBです
+.\scripts\install-godot-web-templates.ps1
+
+# Godot起動確認、WebMCP型検査、Web Release生成
+.\scripts\run-smoke.ps1
+bun install --frozen-lockfile
+bun run check:webmcp
+.\scripts\build-web.ps1
+```
+
+成果物は`build/web/index.html`です。WebAssemblyのため、ファイルを直接開かずHTTPサーバーから配信してください。
+
+Semantic actionを含むミッション試験：
+
+```powershell
+godot --headless --path . --script res://tests/mission_smoke.gd
+```
+
+この試験はPlayer Tree、非表示情報の除外、危険／安全な電力経路、`set_value`、`set_checked`、`select`、`click`、通信、条件status、相関完了を確認します。
+
+## AI Control Operator向け手順
+
+WebMCP対応ブラウザでゲームを開くと、ページ内に`get_ui_tree`、`click_node`、`set_value`、`set_checked`、`select`、`wait_for_node`等が登録されます。安全な基本手順は次のとおりです。
+
+```text
+get_ui_tree()
+set_value("agent-message-draft", "Wait at Door A. I will enable the shield first.")
+click_node("send-agent-message")
+wait_for_node("partner-at-door-a")
+set_checked("shield-enabled", true)
+set_value("reactor-power", "85")
+click_node("door-a-control")
+select("power-route", "Maintenance / Suppress laser 6s")
+```
+
+ブラウザ経路は常にGuaのPlayer投影を使い、非表示Controlは公開しません。ゲーム状態とツール登録はタブごとに独立します。
 
 ## 関連
 

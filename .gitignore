@@ -1,0 +1,6 @@
+.godot/
+addons/gua/
+build/
+node_modules/
+*.tmp
+

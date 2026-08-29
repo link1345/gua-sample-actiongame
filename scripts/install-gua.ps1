@@ -53,7 +53,9 @@ foreach ($package in $packages) {
     if (Test-Path $addonDirectory) {
         Remove-Item -LiteralPath $addonDirectory -Recurse -Force
     }
-    Copy-Item -LiteralPath $sourceAddon -Destination (Split-Path -Parent $addonDirectory) -Recurse
+    $addonParent = Split-Path -Parent $addonDirectory
+    New-Item -ItemType Directory -Force $addonParent | Out-Null
+    Copy-Item -LiteralPath $sourceAddon -Destination $addonParent -Recurse
 }
 
 Set-Content -LiteralPath $versionMarker -Value $version -NoNewline

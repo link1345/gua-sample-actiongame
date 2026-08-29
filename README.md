@@ -1,4 +1,4 @@
-# Gua Signal Relay
+# AI Lovey-Dovey Kyun-Kyun! — Our First Mission Together
 
 A browser action game where a human field operator and an AI control-room partner must observe the same mission, communicate, and act together.
 

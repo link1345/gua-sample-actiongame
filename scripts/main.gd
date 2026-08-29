@@ -175,6 +175,7 @@ func _build_title_screen() -> void:
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_screen.add_child(glow)
 	var title := _localized_label("title-heading", "app_title", 42, CYAN)
+	_localized_font_sizes(title, 34, 25)
 	title.position = Vector2(170, 110)
 	title.size = Vector2(940, 64)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -220,6 +221,7 @@ func _build_mission_screen() -> void:
 	header.size = Vector2(1244, 62)
 	mission_screen.add_child(header)
 	var title := _localized_label("mission-title", "app_title", 20, CYAN)
+	_localized_font_sizes(title, 15, 10)
 	title.position = Vector2(38, 26)
 	title.size = Vector2(320, 28)
 	mission_screen.add_child(title)
@@ -612,11 +614,20 @@ func _localized(control: Control, key: String) -> Control:
 	return control
 
 
+func _localized_font_sizes(control: Control, ja_size: int, en_size: int) -> Control:
+	control.set_meta("font_size_ja", ja_size)
+	control.set_meta("font_size_en", en_size)
+	control.add_theme_font_size_override("font_size", ja_size if locale == GameTextScript.JA else en_size)
+	return control
+
+
 func _sync_localized_tree(node: Node) -> void:
 	if node is Control and node.has_meta("localization_key"):
 		var control := node as Control
 		if control is Label or control is Button or control is CheckBox:
 			control.text = _text(str(control.get_meta("localization_key")))
+	if node is Control and node.has_meta("font_size_ja") and node.has_meta("font_size_en"):
+		node.add_theme_font_size_override("font_size", int(node.get_meta("font_size_ja")) if locale == GameTextScript.JA else int(node.get_meta("font_size_en")))
 	for child in node.get_children():
 		_sync_localized_tree(child)
 

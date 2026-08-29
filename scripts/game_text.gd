@@ -6,7 +6,7 @@ const EN := "en"
 
 const TEXT := {
 	JA: {
-		"app_title": "GUA // SIGNAL RELAY",
+		"app_title": "AIらぶらぶきゅんきゅん！初めての共同作業！",
 		"mission_subtitle": "セクターAからの脱出",
 		"title_game_description": "これはWebMCPを通じてAIと一緒に操作する協力ゲームです。",
 		"title_human_role": "人間：WASDまたは矢印キーでFIELDを移動し、AIとの直接会話で状況を伝えます。",
@@ -129,7 +129,7 @@ const TEXT := {
 		"damage_laser": "レーザー接触",
 	},
 	EN: {
-		"app_title": "GUA // SIGNAL RELAY",
+		"app_title": "AI Lovey-Dovey Kyun-Kyun! — Our First Mission Together",
 		"mission_subtitle": "ESCAPE FROM SECTOR A",
 		"title_game_description": "This is a cooperative game played with an AI through WebMCP.",
 		"title_human_role": "HUMAN: Move FIELD with WASD or arrow keys and report through the direct AI conversation.",

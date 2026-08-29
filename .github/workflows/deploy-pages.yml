@@ -16,8 +16,10 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     timeout-minutes: 45
+    env:
+      GODOT_EXECUTABLE: ${{ github.workspace }}\Godot_v4.7-stable_win64_console.exe
     steps:
       - uses: actions/checkout@v4
 
@@ -36,11 +38,14 @@ jobs:
           key: godot-4.7-stable-export-templates
 
       - name: Install Godot 4.7 editor
-        shell: bash
+        shell: pwsh
         run: |
-          curl -fsSLO https://github.com/godotengine/godot-builds/releases/download/4.7-stable/Godot_v4.7-stable_linux.x86_64.zip
-          unzip -q Godot_v4.7-stable_linux.x86_64.zip
-          chmod +x Godot_v4.7-stable_linux.x86_64
+          $archive = "Godot_v4.7-stable_win64.exe.zip"
+          Invoke-WebRequest "https://github.com/godotengine/godot-builds/releases/download/4.7-stable/$archive" -OutFile $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath .
+          if (-not (Test-Path -LiteralPath $env:GODOT_EXECUTABLE)) {
+            throw "Godot console executable was not extracted: $env:GODOT_EXECUTABLE"
+          }
 
       - name: Install pinned Gua and Web templates
         shell: pwsh
@@ -49,23 +54,28 @@ jobs:
           scripts/install-godot-web-templates.ps1
 
       - name: Verify TypeScript and Godot mission
-        shell: bash
+        shell: pwsh
         run: |
           bun install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw "bun install failed with exit code $LASTEXITCODE" }
           bun run check:webmcp
-          ./Godot_v4.7-stable_linux.x86_64 --headless --import --path .
-          ./Godot_v4.7-stable_linux.x86_64 --headless --path . --script res://tests/mission_smoke.gd
+          if ($LASTEXITCODE -ne 0) { throw "WebMCP type check failed with exit code $LASTEXITCODE" }
+          & $env:GODOT_EXECUTABLE --headless --import --path .
+          if ($LASTEXITCODE -ne 0) { throw "Godot import failed with exit code $LASTEXITCODE" }
+          & $env:GODOT_EXECUTABLE --headless --path . --script res://tests/mission_smoke.gd
+          if ($LASTEXITCODE -ne 0) { throw "Godot mission smoke failed with exit code $LASTEXITCODE" }
 
       - name: Verify live Semantic UI with Gua.Testing
-        env:
-          GODOT_EXECUTABLE: ${{ github.workspace }}/Godot_v4.7-stable_linux.x86_64
+        shell: pwsh
         run: |
           dotnet restore tests/GuaSignalRelay.Tests.csproj --configfile NuGet.Config
+          if ($LASTEXITCODE -ne 0) { throw "dotnet restore failed with exit code $LASTEXITCODE" }
           dotnet test tests/GuaSignalRelay.Tests.csproj --no-restore
+          if ($LASTEXITCODE -ne 0) { throw "Gua.Testing UI tests failed with exit code $LASTEXITCODE" }
 
       - name: Build Web Release
         shell: pwsh
-        run: scripts/build-web.ps1 -GodotExecutable "$PWD/Godot_v4.7-stable_linux.x86_64"
+        run: scripts/build-web.ps1 -GodotExecutable $env:GODOT_EXECUTABLE
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

@@ -17,7 +17,7 @@ const TEXT := Color("d8edf4")
 const MUTED := Color("7897a5")
 
 var state := MissionStateScript.new()
-var locale := GameTextScript.JA
+var locale := GameTextScript.EN
 var game_started := false
 var ui
 var world: SignalRelayWorld

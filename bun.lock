@@ -5,8 +5,8 @@
     "": {
       "name": "gua-signal-relay",
       "dependencies": {
-        "gua-webmcp": "1.0.2",
-        "gua-world-tools": "1.0.2",
+        "gua-webmcp": "1.0.10",
+        "gua-world-tools": "1.0.10",
       },
       "devDependencies": {
         "typescript": "5.9.2",
@@ -14,9 +14,9 @@
     },
   },
   "packages": {
-    "gua-webmcp": ["gua-webmcp@1.0.2", "", { "dependencies": { "gua-world-tools": "^1.0.2" } }, "sha512-xX9mC84g+KeQHxcx7MdxfVr6sGIVjyIJL5dn9RHtbhjD0N0AM+Hrb9QzTfjOloSrToLeUKYv/lFuy/GZDg5z9Q=="],
+    "gua-webmcp": ["gua-webmcp@1.0.10", "", { "dependencies": { "gua-world-tools": "^1.0.10" } }, "sha512-K14Wv95/4OnK6fOTkjm5aQrt8kSa7Rwza4zXSNIsMlBWOOPlxnVipMvlM8NG2pqa/yLIZ5cQTkwgA1aI4iUKng=="],
 
-    "gua-world-tools": ["gua-world-tools@1.0.2", "", {}, "sha512-pmjt9XYlEqjOb2wacXtVr5lyra+duNa7k89m+VRu5w8bcvY+o6Y/wTmIfJlFaR5Hfy2u/YZDObAUFInKgcP/uA=="],
+    "gua-world-tools": ["gua-world-tools@1.0.10", "", {}, "sha512-F2n2THh/mOUpgVQiU0iZDWrcgiu40SWnqyEVy46aabIUdGFm8w2ZVvQJkYfIeSwd6LYZdIVlhS9h4NrGyfFSJQ=="],
 
     "typescript": ["typescript@5.9.2", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-CWBzXQrc/qOkhidw1OzBTQuYRbfyxDXJMVJ1XNwUHGROVmuaeiEm3OslpZ1RV96d7SKKjZKrSJu3+t/xlw3R9A=="],
   }

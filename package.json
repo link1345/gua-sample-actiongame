@@ -1,6 +1,6 @@
 {
   "name": "gua-signal-relay",
-  "version": "1.0.2",
+  "version": "1.0.10",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,8 +8,8 @@
     "check:webmcp": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "gua-webmcp": "1.0.2",
-    "gua-world-tools": "1.0.2"
+    "gua-webmcp": "1.0.10",
+    "gua-world-tools": "1.0.10"
   },
   "devDependencies": {
     "typescript": "5.9.2"

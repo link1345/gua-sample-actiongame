@@ -27,6 +27,7 @@ const COLORS := {
 var state: MissionState
 var player_position := Vector2(92, 320)
 var velocity := Vector2.ZERO
+var semantic_move_input := Vector2.ZERO
 var hit_cooldown := 0.0
 var intro_pulse := 0.0
 var active := false
@@ -56,6 +57,7 @@ func refresh_semantics() -> void:
 func reset_player() -> void:
 	player_position = Vector2(92, 320)
 	velocity = Vector2.ZERO
+	semantic_move_input = Vector2.ZERO
 	hit_cooldown = 0.0
 	if state != null:
 		state.update_operator_position(player_position.x)
@@ -78,7 +80,8 @@ func _process(delta: float) -> void:
 
 
 func _move_player(delta: float) -> void:
-	var input := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	var keyboard_input := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	var input := keyboard_input if not keyboard_input.is_zero_approx() else semantic_move_input
 	velocity = input * 190.0
 	var next := player_position + velocity * delta
 	next.x = clampf(next.x, 32.0, WORLD_SIZE.x - 32.0)
@@ -97,6 +100,10 @@ func _move_player(delta: float) -> void:
 
 	if state.exit_unlocked and player_position.x >= EXIT_X:
 		state.complete()
+
+
+func set_semantic_move_input(value: Vector2) -> void:
+	semantic_move_input = value.limit_length(1.0)
 
 
 func _update_zones() -> void:

@@ -15,10 +15,12 @@ const AMBER := Color("ffba5c")
 const RED := Color("ff526d")
 const TEXT := Color("d8edf4")
 const MUTED := Color("7897a5")
+const GAME_INPUT_ACTION_MOVE := "move"
 
 var state := MissionStateScript.new()
 var locale := GameTextScript.EN
 var game_started := false
+var semantic_move_input := Vector2.ZERO
 var ui
 var world: SignalRelayWorld
 var title_screen: Control
@@ -73,6 +75,7 @@ func _exit_tree() -> void:
 
 
 func _process(_delta: float) -> void:
+	_sync_game_input()
 	if game_started:
 		_sync_live_ui()
 		world.queue_redraw()
@@ -92,10 +95,12 @@ func _screen_name() -> String:
 
 func _setup_gua() -> void:
 	if not ResourceLoader.exists("res://addons/gua/gua_auto_adapter.gd"):
-		push_warning("Gua v1.0.2 addon is not installed. Run scripts/install-gua.ps1 before testing WebMCP.")
+		push_warning("Gua v1.0.10 addon is not installed. Run scripts/install-gua.ps1 before testing WebMCP.")
 		return
 	ui = GuaAutoAdapterScript.new()
 	ui.attach(self)
+	ui.game_input_action_changed.connect(_on_game_input_action_changed)
+	_configure_game_input_actions()
 	if not OS.has_feature("web"):
 		var bridge_port := _resolve_gua_bridge_port()
 		if bridge_port <= 0:
@@ -104,6 +109,39 @@ func _setup_gua() -> void:
 			print("Gua test bridge listening at %s" % ui.inspector_bridge_url())
 		else:
 			push_warning("Could not start the Gua test bridge on port %d." % bridge_port)
+
+
+func _configure_game_input_actions() -> void:
+	if ui == null:
+		return
+	var input_context := "mission" if game_started else "title"
+	var actions: Array[Dictionary] = [{
+		"id": GAME_INPUT_ACTION_MOVE,
+		"description": "Move the Field Operator with a normalized two-dimensional direction.",
+		"value_type": "vector2",
+		"minimum": -1.0,
+		"maximum": 1.0,
+		"holdable": true,
+		"active": game_started,
+		"bindings": ["WASD", "Arrow keys"],
+		"category": "movement",
+		"aliases": ["walk", "navigate"],
+		"tags": ["gameplay", "field-operator"],
+	}]
+	if not ui.configure_game_input_actions(input_context, actions, true):
+		push_warning("Could not publish Gua game input actions for %s." % input_context)
+
+
+func _sync_game_input() -> void:
+	if world == null:
+		return
+	world.set_semantic_move_input(semantic_move_input if game_started else Vector2.ZERO)
+
+
+func _on_game_input_action_changed(action_id: String, value: Variant) -> void:
+	if action_id != GAME_INPUT_ACTION_MOVE:
+		return
+	semantic_move_input = value if value is Vector2 else Vector2.ZERO
 
 
 func _resolve_gua_bridge_port() -> int:
@@ -473,6 +511,7 @@ func _start_game() -> void:
 	overlay.visible = false
 	game_started = true
 	world.set_active(true)
+	_configure_game_input_actions()
 	_sync_ui()
 	if ui != null:
 		ui.update("mission")
@@ -480,6 +519,8 @@ func _start_game() -> void:
 
 func _show_title() -> void:
 	game_started = false
+	semantic_move_input = Vector2.ZERO
+	_configure_game_input_actions()
 	if world != null:
 		world.set_active(false)
 		world.reset_player()

@@ -92,7 +92,7 @@ func _screen_name() -> String:
 
 func _setup_gua() -> void:
 	if not ResourceLoader.exists("res://addons/gua/gua_auto_adapter.gd"):
-		push_warning("Gua v1.0.2 addon is not installed. Run scripts/install-gua.ps1 before testing WebMCP.")
+		push_warning("Gua v1.0.10 addon is not installed. Run scripts/install-gua.ps1 before testing WebMCP.")
 		return
 	ui = GuaAutoAdapterScript.new()
 	ui.attach(self)

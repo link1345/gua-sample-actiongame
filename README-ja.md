@@ -4,7 +4,7 @@
 
 [Godot](https://godotengine.org/)と[Gua](https://github.com/link1345/gua)を使い、Canvas／WebGLゲームをSemantic UI Tree経由でWebMCP対応させるデモとして開発します。人間はキャラクターを直接操作し、AIはリアルタイムのUI Treeを読み、管制コンソールを操作し、条件を待ちます。会話はゲーム外のAI入力欄で行います。
 
-> 状態：プレイ可能なMVPを実装済みです。Gua `v1.0.2`でGodot Web Release、Gua Semantic UI、ページ内WebMCP bundleをローカル検証しています。GitHub Pagesは`main`更新時にワークフローから公開されます。
+> 状態：プレイ可能なMVPを実装済みです。Gua `v1.0.10`でGodot Web Release、Gua Semantic UI、ページ内WebMCP bundleをローカル検証しています。GitHub Pagesは`main`更新時にワークフローから公開されます。
 
 [English](README.md) | 日本語
 
@@ -69,13 +69,13 @@ Guaは、安定したnode ID、role、label、text、state、対応action、リ�
 
 固定依存：
 
-- Gua Godot addon `v1.0.2`
-- `Gua.Testing` `v1.0.2`
-- `Gua.Testing.Godot` `v1.0.2`
-- `gua-webmcp` `v1.0.2`
-- `gua-world-tools` `v1.0.2`
+- Gua Godot addon `v1.0.10`
+- `Gua.Testing` `v1.0.10`
+- `Gua.Testing.Godot` `v1.0.10`
+- `gua-webmcp` `v1.0.10`
+- `gua-world-tools` `v1.0.10`
 
-> Godot addonは公式Releaseの`gua-godot-addon-v1.0.2.zip`をSHA-256検証付きで導入します。Windows DebugとWeb Debug／Releaseのバイナリを同じarchiveから取得します。
+> Godot addonは公式Releaseの`gua-godot-addon-v1.0.10.zip`をSHA-256検証付きで導入します。Windows DebugとWeb Debug／Releaseのバイナリを同じarchiveから取得します。
 
 ブラウザネイティブ経路では、外部MCPサーバーやWebSocket接続を必要としません。
 
@@ -100,7 +100,7 @@ Godot Canvas内でも日本語を安定表示するため、WebビルドにはSI
 必要環境はGodot 4.7、PowerShell 7、Bunです。
 
 ```powershell
-# Gua v1.0.2 Windows/Web addonを公式SHA-256検証付きで導入
+# Gua v1.0.10 Windows/Web addonを公式SHA-256検証付きで導入
 .\scripts\install-gua.ps1
 
 # 初回だけ。Godot公式アーカイブは約1.2GBです

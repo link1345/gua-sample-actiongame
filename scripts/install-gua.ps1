@@ -4,12 +4,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$version = "1.0.2"
+$version = "1.0.10"
 $releaseBase = "https://github.com/link1345/gua/releases/download/gua-v$version"
 $packages = @(
     @{
         Name = "gua-godot-addon-v$version.zip"
-        Sha256 = "885b41208382758d22b0f2faa64881afeaabe7cb9527dc95c0d4b962f85be5a4"
+        Sha256 = "8549c2dff5906981b4efedecb6a09316d05943e58f8fb2c12e607501a2900ec7"
     }
 )
 

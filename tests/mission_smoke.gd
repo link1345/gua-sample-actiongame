@@ -17,7 +17,7 @@ func _run() -> void:
 	root.add_child(game)
 	await process_frame
 	await process_frame
-	_check(game.ui != null, "Gua v1.0.2 adapter attaches")
+	_check(game.ui != null, "Gua v1.0.10 adapter attaches")
 	if game.ui == null:
 		_finish()
 		return

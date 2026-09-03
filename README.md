@@ -4,7 +4,7 @@ A browser action game where a human field operator and an AI control-room partne
 
 Built with [Godot](https://godotengine.org/) and [Gua](https://github.com/link1345/gua), this project demonstrates semantic interaction with a Canvas/WebGL game through WebMCP. The human moves through the level directly, while the AI reads the live Semantic UI Tree, operates the control console, and waits for mission conditions. Conversation happens in the direct AI input outside the game.
 
-> Status: playable MVP implemented. The Godot Web Release, Gua Semantic UI, and in-page WebMCP bundle have been locally verified with Gua `v1.0.2`. The GitHub Pages workflow deploys updates from `main`.
+> Status: playable MVP implemented. The Godot Web Release, Gua Semantic UI, and in-page WebMCP bundle have been locally verified with Gua `v1.0.10`. The GitHub Pages workflow deploys updates from `main`.
 
 English | [日本語](README-ja.md)
 
@@ -69,13 +69,13 @@ The first playable build is one short two-to-three-minute mission containing:
 
 Pinned dependencies:
 
-- Gua Godot addon `v1.0.2`
-- `Gua.Testing` `v1.0.2`
-- `Gua.Testing.Godot` `v1.0.2`
-- `gua-webmcp` `v1.0.2`
-- `gua-world-tools` `v1.0.2`
+- Gua Godot addon `v1.0.10`
+- `Gua.Testing` `v1.0.10`
+- `Gua.Testing.Godot` `v1.0.10`
+- `gua-webmcp` `v1.0.10`
+- `gua-world-tools` `v1.0.10`
 
-> The Godot addon is installed from the official `gua-godot-addon-v1.0.2.zip` release asset with SHA-256 verification. Windows Debug and Web Debug/Release binaries come from the same archive.
+> The Godot addon is installed from the official `gua-godot-addon-v1.0.10.zip` release asset with SHA-256 verification. Windows Debug and Web Debug/Release binaries come from the same archive.
 
 No external MCP server or WebSocket connection is required for the browser-native game path.
 

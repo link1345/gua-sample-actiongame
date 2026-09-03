@@ -2,7 +2,7 @@
 
 人間の現場担当者とAIの管制担当者が、同じミッションを観測し、AIとの直接会話で相談しながら協力するブラウザ向けアクションゲームです。
 
-[Godot](https://godotengine.org/)と[Gua](https://github.com/link1345/gua)を使い、Canvas／WebGLゲームをSemantic UI Tree経由でWebMCP対応させるデモとして開発します。人間はキャラクターを直接操作し、AIはリアルタイムのUI Treeを読み、管制コンソールを操作し、条件を待ちます。会話はゲーム外のAI入力欄で行います。
+[Godot](https://godotengine.org/)と[Gua](https://github.com/link1345/gua)を使い、Canvas／WebGLゲームをSemantic UI Tree経由でWebMCP対応させるデモとして開発します。人間はキャラクターを直接操作し、AIはリアルタイムのUI Treeを読み、管制コンソールを操作し、条件を待ちます。さらにGuaのsemantic Game Input Action APIから、ブラウザエージェント用の正規化された`move`ベクトルも任意で利用できます。会話はゲーム外のAI入力欄で行います。
 
 > 状態：プレイ可能なMVPを実装済みです。Gua `v1.0.10`でGodot Web Release、Gua Semantic UI、ページ内WebMCP bundleをローカル検証しています。GitHub Pagesは`main`更新時にワークフローから公開されます。
 
@@ -57,6 +57,7 @@ Guaは、安定したnode ID、role、label、text、state、対応action、リ�
 - 2タブで開いた場合のゲーム状態分離
 - ミッションをまたいで維持される、人間専用の日英UI切替
 - 位置、空間案内、危険状態を持つPlayer投影のWorld Object Tree
+- `configure_game_input_actions`で設定したPlayer公開の`move` Game Input Action
 
 ## 技術構成
 
@@ -134,7 +135,7 @@ godot --headless --path . --script res://tests/mission_smoke.gd
 
 ## AI Control Operator向け手順
 
-WebMCP対応ブラウザでゲームを開くと、ページ内に`get_ui_tree`、`click_node`、`set_value`、`set_checked`、`select`、`wait_for_node`等が登録されます。安全な基本手順は次のとおりです。
+WebMCP対応ブラウザでゲームを開くと、ページ内に`get_ui_tree`、`click_node`、`set_value`、`set_checked`、`select`、`wait_for_node`、Game Input Action関連ツール等が登録されます。安全な基本手順は次のとおりです。
 
 ```text
 get_ui_tree()
@@ -146,6 +147,8 @@ click_node("door-a-control")
 wait_for_node("partner-at-laser-staging")
 click_node("suppress-laser")
 ```
+
+ミッション中は、`get_game_input_actions()`がPlayer公開の`move`を有効な`vector2` actionとして返します。`set_game_input_action("move", {"x": 1, "y": 0})`で右移動を開始し、`release_game_input_action("move")`または期限付きleaseの満了で停止します。タイトル画面では同じactionを公開したままinactiveにします。人間がWASD／矢印キーを操作している間は物理キー入力を優先します。
 
 「レーザーが消えたら走る」などの相談や合図は、ゲーム内ツールではなく、このゲームをプレイしているAIとの直接会話で行います。
 

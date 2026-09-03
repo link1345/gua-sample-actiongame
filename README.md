@@ -2,7 +2,7 @@
 
 A browser action game where a human field operator and an AI control-room partner must observe the same mission, communicate, and act together.
 
-Built with [Godot](https://godotengine.org/) and [Gua](https://github.com/link1345/gua), this project demonstrates semantic interaction with a Canvas/WebGL game through WebMCP. The human moves through the level directly, while the AI reads the live Semantic UI Tree, operates the control console, and waits for mission conditions. Conversation happens in the direct AI input outside the game.
+Built with [Godot](https://godotengine.org/) and [Gua](https://github.com/link1345/gua), this project demonstrates semantic interaction with a Canvas/WebGL game through WebMCP. The human moves through the level directly, while the AI reads the live Semantic UI Tree, operates the control console, and waits for mission conditions. Gua's semantic Game Input Action API also exposes an optional normalized `move` vector for browser-agent control. Conversation happens in the direct AI input outside the game.
 
 > Status: playable MVP implemented. The Godot Web Release, Gua Semantic UI, and in-page WebMCP bundle have been locally verified with Gua `v1.0.10`. The GitHub Pages workflow deploys updates from `main`.
 
@@ -57,6 +57,7 @@ The first playable build is one short two-to-three-minute mission containing:
 - Independent state when the game is opened in two browser tabs
 - Japanese/English UI switching that remains human-only and persists between missions
 - A Player-projected World Object Tree with positions, spatial guidance, and hazard state
+- A Player-visible `move` Game Input Action configured through `configure_game_input_actions`
 
 ## Technology
 
@@ -132,7 +133,7 @@ The external UI test verifies the title instructions and AI-only start, World Ob
 
 ## AI Control Operator
 
-A WebMCP-capable browser discovers `get_ui_tree`, `click_node`, `set_value`, `set_checked`, `select`, `wait_for_node`, and the other supported Gua tools directly on the page. A safe opening sequence is:
+A WebMCP-capable browser discovers `get_ui_tree`, `click_node`, `set_value`, `set_checked`, `select`, `wait_for_node`, Game Input Action tools, and the other supported Gua tools directly on the page. A safe opening sequence is:
 
 ```text
 get_ui_tree()
@@ -144,6 +145,8 @@ click_node("door-a-control")
 wait_for_node("partner-at-laser-staging")
 click_node("suppress-laser")
 ```
+
+During the mission, `get_game_input_actions()` reports the Player-visible `move` action as an active `vector2`. `set_game_input_action("move", {"x": 1, "y": 0})` moves right until it is released or its bounded lease expires; `release_game_input_action("move")` neutralizes it. The action is published but inactive on the title screen. Physical WASD/arrow-key input takes priority whenever the human is actively steering.
 
 Coordination such as “run when the laser turns off” happens in the direct conversation with the AI playing the game, not through an in-game tool.
 

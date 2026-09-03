@@ -35,6 +35,9 @@ func _run() -> void:
 	_check(not title_tree.contains("reactor-current"), "mission controls are hidden on title")
 	_check(not title_tree.contains("language-toggle"), "human language toggle is private")
 	_check(not title_world.contains("sector-a"), "title publishes no Player world objects")
+	var title_actions: String = game.ui.get_player_game_input_actions_json()
+	_check(title_actions.contains('"context":"title"'), "title publishes the game input context")
+	_check(title_actions.contains('"id":"move"') and title_actions.contains('"active":false'), "move game input action is inactive on title")
 	_check(game.play_game_button.mouse_filter == Control.MOUSE_FILTER_IGNORE, "human pointer input cannot press play")
 	_check(game.play_game_button.focus_mode == Control.FOCUS_NONE, "human keyboard focus cannot press play")
 	var initial_position: Vector2 = game.world.player_position
@@ -54,6 +57,39 @@ func _run() -> void:
 	_check(not mission_tree.contains("field-current-readout"), "AI tree hides human-only current readout")
 	_check(not mission_tree.contains("human-message-draft") and not mission_tree.contains("send-human-message"), "mission has no human message composer")
 	_check(not mission_tree.contains("agent-message-draft") and not mission_tree.contains("send-agent-message"), "mission has no in-game AI message composer")
+	var mission_actions: String = game.ui.get_player_game_input_actions_json()
+	_check(mission_actions.contains('"context":"mission"'), "mission publishes the active game input context")
+	_check(mission_actions.contains('"id":"move"') and mission_actions.contains('"valueType":"vector2"') and mission_actions.contains('"active":true'), "mission exposes move as a Player vector2 game input action")
+	var game_input_owner: int = game.ui.create_game_input_owner()
+	var move_receipt: Dictionary = game.ui.enqueue_game_input({
+		"kind": 1,
+		"operation": 2,
+		"target": "move",
+		"owner_id": game_input_owner,
+		"observation_profile": 1,
+		"lease_ms": 5000,
+		"value": {"x": 1.0, "y": 0.0},
+	})
+	_check(int(move_receipt.get("error_code", -1)) == 0, "semantic move request is accepted")
+	game.ui.update("mission")
+	var position_before_game_input: Vector2 = game.world.player_position
+	await create_timer(0.1).timeout
+	_check(game.world.player_position.x > position_before_game_input.x, "semantic move action advances the Field Operator")
+	var release_receipt: Dictionary = game.ui.enqueue_game_input({
+		"kind": 1,
+		"operation": 3,
+		"target": "move",
+		"owner_id": game_input_owner,
+		"observation_profile": 1,
+	})
+	_check(int(release_receipt.get("error_code", -1)) == 0, "semantic move release is accepted")
+	game.ui.update("mission")
+	await create_timer(0.05).timeout
+	_check(game.world.semantic_move_input.is_zero_approx(), "semantic move release neutralizes movement")
+	game.ui.release_game_input_owner(game_input_owner)
+	game.world.reset_player()
+	game.world.refresh_semantics()
+	game.ui.update("mission")
 	var mission_world: String = game.ui.get_player_world_object_tree_json()
 	for id in ["sector-a", "field-operator", "door-a", "laser-staging-zone", "laser-array", "extraction-zone", "exit-airlock"]:
 		_check(mission_world.contains(id), "Player world tree publishes %s" % id)
